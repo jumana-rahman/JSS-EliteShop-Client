@@ -1,22 +1,24 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { authClient } from '../lib/authClient';
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
+  const { data: session, isPending } = authClient.useSession();
+  const user = session?.user ?? null;
+
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
-  const [user, setUser] = useState(null);
   const [toast, setToast] = useState(null);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
 
-  // Load from localStorage
+  // Load guest cart/wishlist
   useEffect(() => {
     const savedCart = localStorage.getItem('jss_cart');
     const savedWishlist = localStorage.getItem('jss_wishlist');
-    const savedUser = localStorage.getItem('jss_user');
     if (savedCart) setCart(JSON.parse(savedCart));
     if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
-    if (savedUser) setUser(JSON.parse(savedUser));
   }, []);
 
   useEffect(() => { localStorage.setItem('jss_cart', JSON.stringify(cart)); }, [cart]);
@@ -61,21 +63,36 @@ export function AppProvider({ children }) {
 
   const isWishlisted = (productId) => wishlist.some(p => p.id === productId);
 
-  const login = (email) => {
-    const newUser = {
-      name: email.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      email,
-      avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&auto=format`,
-    };
-    setUser(newUser);
-    localStorage.setItem('jss_user', JSON.stringify(newUser));
-    showToast('Welcome back! You are now logged in.', 'success');
+  const login = async (email, password, rememberMe = true) => {
+    setAuthBusy(true);
+    try {
+      const { error } = await authClient.signIn.email({ email, password, rememberMe });
+      if (error) throw new Error(error.message || 'Unable to sign in. Please try again.');
+      showToast('Welcome back! You are now logged in.', 'success');
+    } finally {
+      setAuthBusy(false);
+    }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('jss_user');
-    showToast('You have been logged out.', 'info');
+  const register = async ({ name, email, password, phone }) => {
+    setAuthBusy(true);
+    try {
+      const { error } = await authClient.signUp.email({ name, email, password, phone });
+      if (error) throw new Error(error.message || 'Unable to create your account.');
+      showToast('Account created. Welcome to JSS EliteShop!', 'success');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const logout = async () => {
+    setAuthBusy(true);
+    try {
+      await authClient.signOut();
+      showToast('You have been logged out.', 'info');
+    } finally {
+      setAuthBusy(false);
+    }
   };
 
   const showToast = (message, type = 'success') => {
@@ -87,7 +104,8 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount,
       wishlist, toggleWishlist, isWishlisted,
-      user, isLoggedIn: !!user, login, logout,
+      user, isLoggedIn: !!user, isAdmin: user?.role === 'admin',
+      authLoading: isPending, authBusy, login, register, logout,
       toast, showToast,
       aiChatOpen, setAiChatOpen,
     }}>
