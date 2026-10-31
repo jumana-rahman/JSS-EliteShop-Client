@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { products, categories } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import QuickViewModal from '../components/QuickViewModal';
+import { listProducts } from '../services/products';
+import { listCategories } from '../services/categories';
 
 const sortOptions = [
   { value: 'popular', label: 'Most Popular' },
@@ -14,73 +15,186 @@ const sortOptions = [
   { value: 'discount', label: 'Biggest Discount' },
 ];
 
+const MAX_PRICE = 2000;
+
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [quickView, setQuickView] = useState(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [products, setProducts] = useState([]);
+  const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 0, brands: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   const searchQuery = searchParams.get('search') || '';
   const activeCategory = searchParams.get('category') || 'all';
+  const activeSubcategory = searchParams.get('subcategory') || 'all';
+  const activeBrand = searchParams.get('brand') || 'all';
   const sort = searchParams.get('sort') || 'popular';
   const minPrice = Number(searchParams.get('minPrice') || 0);
-  const maxPrice = Number(searchParams.get('maxPrice') || 2000);
+  const maxPrice = Number(searchParams.get('maxPrice') || MAX_PRICE);
   const minRating = Number(searchParams.get('rating') || 0);
+  const minDiscount = Number(searchParams.get('discount') || 0);
   const inStockOnly = searchParams.get('inStock') === 'true';
+  const page = Math.max(1, Number(searchParams.get('page') || 1));
+
+  const selectedCategory = categories.find(c => c.slug === activeCategory || c.id === activeCategory);
+  const subcategories = selectedCategory?.subcategories || [];
+
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const data = await listCategories();
+        if (active) setCategories(data.categories || []);
+      } catch {
+        if (active) setCategories([]);
+      } finally {
+        if (active) setCategoriesLoading(false);
+      }
+    })();
+
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const data = await listProducts({
+          search: searchQuery || undefined,
+          category: activeCategory !== 'all' ? activeCategory : undefined,
+          subcategory: activeSubcategory !== 'all' ? activeSubcategory : undefined,
+          brand: activeBrand !== 'all' ? activeBrand : undefined,
+          minPrice: minPrice > 0 ? minPrice : undefined,
+          maxPrice: maxPrice < MAX_PRICE ? maxPrice : undefined,
+          rating: minRating > 0 ? minRating : undefined,
+          discount: minDiscount > 0 ? minDiscount : undefined,
+          inStock: inStockOnly ? true : undefined,
+          sort,
+          page,
+          limit: 12,
+        });
+
+        if (!active) return;
+
+        setProducts(data.products || []);
+        setMeta({
+          total: data.total || 0,
+          page: data.page || 1,
+          totalPages: data.totalPages || 0,
+          brands: data.brands || [],
+        });
+      } catch (err) {
+        if (!active) return;
+        setProducts([]);
+        setMeta({ total: 0, page: 1, totalPages: 0, brands: [] });
+        setError(err.message || 'Unable to load products. Please try again.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, searchQuery ? 300 : 0);
+
+    return () => { active = false; clearTimeout(timer); };
+  }, [searchQuery, activeCategory, activeSubcategory, activeBrand, sort, minPrice, maxPrice, minRating, minDiscount, inStockOnly, page, reloadKey]);
 
   const setParam = (key, value) => {
     const p = new URLSearchParams(searchParams);
     if (value) p.set(key, value); else p.delete(key);
+    p.delete('page');
     setSearchParams(p, { replace: true });
   };
 
-  const filteredProducts = useMemo(() => {
-    let list = [...products];
+  const changeCategory = (value) => {
+    const p = new URLSearchParams(searchParams);
+    if (value === 'all') p.delete('category'); else p.set('category', value);
+    p.delete('subcategory');
+    p.delete('page');
+    setSearchParams(p, { replace: true });
+  };
 
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q) ||
-        p.brand.toLowerCase().includes(q) ||
-        p.tags.some(t => t.includes(q))
-      );
-    }
+  const changeSubcategory = (value) => {
+    const p = new URLSearchParams(searchParams);
+    if (!value || value === 'all' || value === activeSubcategory) p.delete('subcategory'); else p.set('subcategory', value);
+    p.delete('page');
+    setSearchParams(p, { replace: true });
+  };
 
-    if (activeCategory !== 'all') {
-      const cat = categories.find(c => c.id === activeCategory);
-      if (cat) list = list.filter(p => p.category === cat.label);
-    }
+  const changeBrand = (value) => {
+    const p = new URLSearchParams(searchParams);
+    if (!value || value === 'all' || value === activeBrand) p.delete('brand'); else p.set('brand', value);
+    p.delete('page');
+    setSearchParams(p, { replace: true });
+  };
 
-    list = list.filter(p => p.price >= minPrice && p.price <= (maxPrice || 9999));
-    if (minRating) list = list.filter(p => p.rating >= minRating);
-    if (inStockOnly) list = list.filter(p => p.inStock);
+  const changeDiscount = (value) => {
+    const p = new URLSearchParams(searchParams);
+    if (!value || value === minDiscount) p.delete('discount'); else p.set('discount', String(value));
+    p.delete('page');
+    setSearchParams(p, { replace: true });
+  };
 
-    switch (sort) {
-      case 'price-low': list.sort((a, b) => a.price - b.price); break;
-      case 'price-high': list.sort((a, b) => b.price - a.price); break;
-      case 'rating': list.sort((a, b) => b.rating - a.rating); break;
-      case 'discount': list.sort((a, b) => b.discount - a.discount); break;
-      case 'newest': list.sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0)); break;
-      default: list.sort((a, b) => b.reviews - a.reviews);
-    }
+  const goToPage = (nextPage) => {
+    const p = new URLSearchParams(searchParams);
+    p.set('page', String(nextPage));
+    setSearchParams(p, { replace: true });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-    return list;
-  }, [searchQuery, activeCategory, sort, minPrice, maxPrice, minRating, inStockOnly]);
+  const pageTitle = searchQuery
+    ? `Results for "${searchQuery}"`
+    : activeCategory !== 'all'
+      ? (selectedCategory?.label || selectedCategory?.name || 'Products')
+      : 'All Products';
+
+  const resetAll = () => {
+    setSearchParams({});
+    setFilterOpen(false);
+  };
+
+  const filterProps = {
+    categories,
+    categoriesLoading,
+    brands: meta.brands,
+    activeCategory,
+    activeSubcategory,
+    activeBrand,
+    subcategories,
+    minPrice,
+    maxPrice,
+    minRating,
+    minDiscount,
+    inStockOnly,
+    onCategoryChange: changeCategory,
+    onSubcategoryChange: changeSubcategory,
+    onBrandChange: changeBrand,
+    onMinPrice: value => setParam('minPrice', value > 0 ? String(value) : ''),
+    onMaxPrice: value => setParam('maxPrice', value < MAX_PRICE ? String(value) : ''),
+    onRating: value => setParam('rating', value > 0 ? String(value) : ''),
+    onDiscount: changeDiscount,
+    onInStock: value => setParam('inStock', value ? 'true' : ''),
+    onReset: resetAll,
+  };
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] pt-16">
-      {/* Header */}
       <div className="bg-gradient-to-r from-[#831843] to-[#9F1239] py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <h1 className="font-display font-bold text-3xl text-white mb-2">
-            {searchQuery ? `Results for "${searchQuery}"` : activeCategory !== 'all' ? categories.find(c => c.id === activeCategory)?.label || 'Products' : 'All Products'}
-          </h1>
-          <p className="text-white/70 text-sm">{filteredProducts.length} products found</p>
+          <h1 className="font-display font-bold text-3xl text-white mb-2">{pageTitle}</h1>
+          <p className="text-white/70 text-sm">
+            {loading ? 'Loading products...' : `${meta.total} product${meta.total === 1 ? '' : 's'} found`}
+          </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search + Sort bar */}
         <div className="flex flex-wrap gap-3 mb-6">
           <div className="flex-1 min-w-64 flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5">
             <svg className="w-4 h-4 text-[#6B756F] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -117,31 +231,10 @@ export default function ProductsPage() {
         </div>
 
         <div className="flex gap-8">
-          {/* Sidebar Filters */}
-          <AnimatePresence>
-            {(filterOpen || true) && (
-              <motion.aside
-                initial={false}
-                className="hidden lg:block w-64 shrink-0"
-              >
-                <FilterPanel
-                  activeCategory={activeCategory}
-                  minPrice={minPrice}
-                  maxPrice={maxPrice}
-                  minRating={minRating}
-                  inStockOnly={inStockOnly}
-                  onCategoryChange={v => setParam('category', v)}
-                  onMinPrice={v => setParam('minPrice', String(v))}
-                  onMaxPrice={v => setParam('maxPrice', String(v))}
-                  onRating={v => setParam('rating', String(v))}
-                  onInStock={v => setParam('inStock', v ? 'true' : '')}
-                  onReset={() => setSearchParams({})}
-                />
-              </motion.aside>
-            )}
-          </AnimatePresence>
+          <aside className="hidden lg:block w-64 shrink-0">
+            <FilterPanel {...filterProps} />
+          </aside>
 
-          {/* Mobile filter drawer */}
           <AnimatePresence>
             {filterOpen && (
               <motion.div
@@ -167,41 +260,78 @@ export default function ProductsPage() {
                       </svg>
                     </button>
                   </div>
-                  <FilterPanel
-                    activeCategory={activeCategory}
-                    minPrice={minPrice}
-                    maxPrice={maxPrice}
-                    minRating={minRating}
-                    inStockOnly={inStockOnly}
-                    onCategoryChange={v => setParam('category', v)}
-                    onMinPrice={v => setParam('minPrice', String(v))}
-                    onMaxPrice={v => setParam('maxPrice', String(v))}
-                    onRating={v => setParam('rating', String(v))}
-                    onInStock={v => setParam('inStock', v ? 'true' : '')}
-                    onReset={() => { setSearchParams({}); setFilterOpen(false); }}
-                  />
+                  <FilterPanel {...filterProps} />
                 </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Product Grid */}
           <div className="flex-1 min-w-0">
-            {filteredProducts.length === 0 ? (
+            {error ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-3xl mb-4">⚠️</div>
+                <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">Could not load products</h3>
+                <p className="text-[#6B756F] text-sm mb-6">{error}</p>
+                <button
+                  onClick={() => setReloadKey(key => key + 1)}
+                  className="px-6 py-3 bg-[#831843] text-white rounded-xl font-semibold text-sm hover:bg-[#9F1239] transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="bg-white rounded-2xl overflow-hidden border border-gray-100">
+                    <div className="skeleton aspect-square" />
+                    <div className="p-4 space-y-3">
+                      <div className="skeleton h-3 w-1/3 rounded" />
+                      <div className="skeleton h-4 w-4/5 rounded" />
+                      <div className="skeleton h-3 w-2/3 rounded" />
+                      <div className="skeleton h-8 w-full rounded-xl" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : products.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center text-3xl mb-4">🔍</div>
                 <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">No products found</h3>
                 <p className="text-[#6B756F] text-sm mb-6">Try adjusting your filters or search query</p>
-                <button onClick={() => setSearchParams({})} className="px-6 py-3 bg-[#831843] text-white rounded-xl font-semibold text-sm hover:bg-[#9F1239] transition-colors">
+                <button onClick={resetAll} className="px-6 py-3 bg-[#831843] text-white rounded-xl font-semibold text-sm hover:bg-[#9F1239] transition-colors">
                   Clear Filters
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {filteredProducts.map(product => (
-                  <ProductCard key={product.id} product={product} onQuickView={setQuickView} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {products.map(product => (
+                    <ProductCard key={product.id} product={product} onQuickView={setQuickView} />
+                  ))}
+                </div>
+
+                {meta.totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-3 mt-10">
+                    <button
+                      onClick={() => goToPage(meta.page - 1)}
+                      disabled={meta.page <= 1}
+                      className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:border-[#831843]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      ← Previous
+                    </button>
+                    <span className="text-sm text-[#6B756F]">
+                      Page {meta.page} of {meta.totalPages}
+                    </span>
+                    <button
+                      onClick={() => goToPage(meta.page + 1)}
+                      disabled={meta.page >= meta.totalPages}
+                      className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:border-[#831843]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -212,7 +342,29 @@ export default function ProductsPage() {
   );
 }
 
-function FilterPanel({ activeCategory, maxPrice, minRating, inStockOnly, onCategoryChange, onMaxPrice, onRating, onInStock, onReset }) {
+function FilterPanel({
+  categories,
+  categoriesLoading,
+  brands,
+  activeCategory,
+  activeSubcategory,
+  activeBrand,
+  subcategories,
+  minPrice,
+  maxPrice,
+  minRating,
+  minDiscount,
+  inStockOnly,
+  onCategoryChange,
+  onSubcategoryChange,
+  onBrandChange,
+  onMinPrice,
+  onMaxPrice,
+  onRating,
+  onDiscount,
+  onInStock,
+  onReset,
+}) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -220,7 +372,6 @@ function FilterPanel({ activeCategory, maxPrice, minRating, inStockOnly, onCateg
         <button onClick={onReset} className="text-xs text-[#9F1239] font-medium hover:underline">Reset all</button>
       </div>
 
-      {/* Categories */}
       <div>
         <h4 className="font-semibold text-sm text-[#17211D] mb-3">Category</h4>
         <div className="space-y-1">
@@ -230,28 +381,108 @@ function FilterPanel({ activeCategory, maxPrice, minRating, inStockOnly, onCateg
           >
             All Categories
           </button>
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => onCategoryChange(cat.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${activeCategory === cat.id ? 'bg-[#831843] text-white font-medium' : 'text-[#6B756F] hover:bg-gray-100'}`}
-            >
-              <span>{cat.icon}</span>
-              {cat.label}
-            </button>
-          ))}
+
+          {categoriesLoading && (
+            <div className="space-y-2 pt-1">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="skeleton h-9 rounded-lg" />
+              ))}
+            </div>
+          )}
+
+          {!categoriesLoading && categories.map(cat => {
+            const isActive = activeCategory === cat.slug || activeCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => onCategoryChange(cat.slug || cat.id)}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${isActive ? 'bg-[#831843] text-white font-medium' : 'text-[#6B756F] hover:bg-gray-100'}`}
+              >
+                <span>{cat.icon || '📦'}</span>
+                {cat.label || cat.name}
+              </button>
+            );
+          })}
+
+          {!categoriesLoading && categories.length === 0 && (
+            <p className="text-xs text-[#6B756F] px-3 py-2">No categories yet.</p>
+          )}
         </div>
       </div>
 
-      {/* Price Range */}
+      {subcategories.length > 0 && (
+        <div>
+          <h4 className="font-semibold text-sm text-[#17211D] mb-3">Subcategory</h4>
+          <div className="space-y-1">
+            <button
+              onClick={() => onSubcategoryChange('all')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${activeSubcategory === 'all' ? 'bg-[#831843] text-white font-medium' : 'text-[#6B756F] hover:bg-gray-100'}`}
+            >
+              All Subcategories
+            </button>
+            {subcategories.map(sub => (
+              <button
+                key={sub.id}
+                onClick={() => onSubcategoryChange(sub.slug || sub.id)}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${activeSubcategory === sub.slug || activeSubcategory === sub.id ? 'bg-[#831843]/10 text-[#831843] font-medium' : 'text-[#6B756F] hover:bg-gray-100'}`}
+              >
+                {sub.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {brands.length > 0 && (
+        <div>
+          <h4 className="font-semibold text-sm text-[#17211D] mb-3">Brand</h4>
+          <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+            <button
+              onClick={() => onBrandChange('all')}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${activeBrand === 'all' ? 'bg-[#831843] text-white font-medium' : 'text-[#6B756F] hover:bg-gray-100'}`}
+            >
+              All Brands
+            </button>
+            {brands.map(brand => (
+              <button
+                key={brand}
+                onClick={() => onBrandChange(brand)}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${activeBrand === brand ? 'bg-[#831843]/10 text-[#831843] font-medium' : 'text-[#6B756F] hover:bg-gray-100'}`}
+              >
+                {brand}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
-        <h4 className="font-semibold text-sm text-[#17211D] mb-3">Max Price: ${maxPrice || 2000}</h4>
+        <h4 className="font-semibold text-sm text-[#17211D] mb-3">Price Range</h4>
+        <div className="flex items-center gap-2 mb-3">
+          <input
+            type="number"
+            min="0"
+            value={minPrice || ''}
+            onChange={e => onMinPrice(e.target.value === '' ? 0 : Number(e.target.value))}
+            placeholder="Min"
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+          />
+          <span className="text-xs text-[#6B756F]">to</span>
+          <input
+            type="number"
+            min="0"
+            value={maxPrice >= MAX_PRICE ? '' : maxPrice}
+            onChange={e => onMaxPrice(e.target.value === '' ? MAX_PRICE : Number(e.target.value))}
+            placeholder="Max"
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+          />
+        </div>
         <input
           type="range"
           min={0}
-          max={2000}
+          max={MAX_PRICE}
           step={50}
-          value={maxPrice || 2000}
+          value={maxPrice}
           onChange={e => onMaxPrice(Number(e.target.value))}
           className="w-full accent-[#831843]"
         />
@@ -261,7 +492,6 @@ function FilterPanel({ activeCategory, maxPrice, minRating, inStockOnly, onCateg
         </div>
       </div>
 
-      {/* Rating */}
       <div>
         <h4 className="font-semibold text-sm text-[#17211D] mb-3">Minimum Rating</h4>
         <div className="space-y-1">
@@ -277,7 +507,21 @@ function FilterPanel({ activeCategory, maxPrice, minRating, inStockOnly, onCateg
         </div>
       </div>
 
-      {/* Availability */}
+      <div>
+        <h4 className="font-semibold text-sm text-[#17211D] mb-3">Discount</h4>
+        <div className="space-y-1">
+          {[0, 10, 25, 50].map(value => (
+            <button
+              key={value}
+              onClick={() => onDiscount(value)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${minDiscount === value ? 'bg-[#831843] text-white font-medium' : 'text-[#6B756F] hover:bg-gray-100'}`}
+            >
+              {value === 0 ? 'Any Discount' : `${value}% & above`}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div>
         <h4 className="font-semibold text-sm text-[#17211D] mb-3">Availability</h4>
         <label className="flex items-center gap-3 cursor-pointer">

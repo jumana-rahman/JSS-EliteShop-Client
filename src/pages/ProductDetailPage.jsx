@@ -1,32 +1,93 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { products } from '../data/products';
 import { useApp } from '../contexts/AppContext';
 import { StarRating } from '../components/ProductCard';
 import ProductCard from '../components/ProductCard';
+import { getProduct, getRelatedProducts } from '../services/products';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
-  const product = products.find(p => p.id === Number(id));
   const { addToCart, toggleWishlist, isWishlisted } = useApp();
+  const [product, setProduct] = useState(null);
+  const [related, setRelated] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [activeTab, setActiveTab] = useState('description');
 
-  if (!product) {
+  useEffect(() => {
+    let active = true;
+
+    setLoading(true);
+    setError('');
+    setProduct(null);
+    setRelated([]);
+    setQuantity(1);
+    setActiveImage(0);
+    setActiveTab('description');
+
+    (async () => {
+      try {
+        const data = await getProduct(id);
+        if (!active) return;
+        setProduct(data.product);
+
+        getRelatedProducts(id, 4)
+          .then(relatedData => {
+            if (active) setRelated(relatedData.products || []);
+          })
+          .catch(() => {
+            if (active) setRelated([]);
+          });
+      } catch (err) {
+        if (!active) return;
+        setError(err.message || 'Unable to load this product.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => { active = false; };
+  }, [id]);
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAFAF7] pt-32 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🔍</div>
-          <h2 className="font-display font-bold text-2xl text-[#17211D] mb-2">Product Not Found</h2>
-          <Link to="/products" className="text-[#831843] font-medium hover:underline">← Back to Products</Link>
+      <div className="min-h-screen bg-[#FAFAF7] pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="skeleton h-4 w-72 rounded mb-8" />
+          <div className="grid lg:grid-cols-2 gap-12">
+            <div className="skeleton aspect-square rounded-3xl" />
+            <div className="space-y-4">
+              <div className="skeleton h-4 w-1/3 rounded" />
+              <div className="skeleton h-10 w-4/5 rounded" />
+              <div className="skeleton h-5 w-1/2 rounded" />
+              <div className="skeleton h-12 w-2/5 rounded" />
+              <div className="skeleton h-10 w-40 rounded-full" />
+              <div className="skeleton h-14 w-full rounded-2xl" />
+              <div className="skeleton h-24 w-full rounded-2xl" />
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  const related = products.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-[#FAFAF7] pt-32 flex items-center justify-center">
+        <div className="text-center px-4">
+          <div className="text-6xl mb-4">🔍</div>
+          <h2 className="font-display font-bold text-2xl text-[#17211D] mb-2">
+            {error ? 'Could Not Load Product' : 'Product Not Found'}
+          </h2>
+          {error && <p className="text-[#6B756F] text-sm mb-4">{error}</p>}
+          <Link to="/products" className="text-[#831843] font-medium hover:underline">← Back to Products</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] pt-16">
@@ -37,7 +98,7 @@ export default function ProductDetailPage() {
           <span>/</span>
           <Link to="/products" className="hover:text-[#831843] transition-colors">Products</Link>
           <span>/</span>
-          <Link to={`/products?category=${product.category.toLowerCase()}`} className="hover:text-[#831843] transition-colors">{product.category}</Link>
+          <Link to={`/products?category=${encodeURIComponent(product.categorySlug || product.category.toLowerCase())}`} className="hover:text-[#831843] transition-colors">{product.category}</Link>
           <span>/</span>
           <span className="text-[#17211D] font-medium line-clamp-1">{product.name}</span>
         </nav>
@@ -192,26 +253,32 @@ export default function ProductDetailPage() {
           {activeTab === 'description' && (
             <div className="bg-white rounded-2xl p-8 border border-gray-100">
               <p className="text-[#17211D] leading-relaxed text-base">{product.description}</p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                {product.tags.map(tag => (
-                  <span key={tag} className="px-3 py-1 bg-[#831843]/8 text-[#831843] text-xs font-medium rounded-full capitalize">
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              {product.tags.length > 0 && (
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {product.tags.map(tag => (
+                    <span key={tag} className="px-3 py-1 bg-[#831843]/8 text-[#831843] text-xs font-medium rounded-full capitalize">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {activeTab === 'specs' && (
             <div className="bg-white rounded-2xl p-8 border border-gray-100">
-              <div className="grid sm:grid-cols-2 gap-0">
-                {Object.entries(product.specs).map(([key, value], i) => (
-                  <div key={key} className={`flex gap-4 py-3.5 ${i < Object.keys(product.specs).length - 1 ? 'border-b border-gray-100' : ''}`}>
-                    <span className="text-[#6B756F] text-sm w-36 shrink-0">{key}</span>
-                    <span className="text-[#17211D] text-sm font-medium">{value}</span>
-                  </div>
-                ))}
-              </div>
+              {Object.keys(product.specs).length === 0 ? (
+                <p className="text-sm text-[#6B756F]">No specifications have been listed for this product yet.</p>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-0">
+                  {Object.entries(product.specs).map(([key, value], i) => (
+                    <div key={key} className={`flex gap-4 py-3.5 ${i < Object.keys(product.specs).length - 1 ? 'border-b border-gray-100' : ''}`}>
+                      <span className="text-[#6B756F] text-sm w-36 shrink-0">{key}</span>
+                      <span className="text-[#17211D] text-sm font-medium">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

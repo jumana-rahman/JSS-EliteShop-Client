@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { products, categories, reviews } from '../data/products';
-import ProductCard from '../components/ProductCard';
+import { reviews } from '../data/products';
+import ProductCard, { StarRating } from '../components/ProductCard';
 import QuickViewModal from '../components/QuickViewModal';
 import { useApp } from '../contexts/AppContext';
-import { StarRating } from '../components/ProductCard';
+import { listProducts } from '../services/products';
+import { listCategories } from '../services/categories';
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -17,11 +18,43 @@ const fadeUp = {
 export default function HomePage() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [aiQuery, setAiQuery] = useState('');
-  const { setAiChatOpen } = useApp();
-  const navigate = useNavigate();
+  const [featured, setFeatured] = useState([]);
+  const [trending, setTrending] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const { setAiChatOpen, showToast } = useApp();
 
-  const featured = products.filter(p => p.isFeatured).slice(0, 4);
-  const trending = products.filter(p => p.isTrending).slice(0, 4);
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const [featuredData, trendingData, newestData, categoriesData] = await Promise.all([
+          listProducts({ featured: true, limit: 4, sort: 'popular' }),
+          listProducts({ trending: true, limit: 4, sort: 'popular' }),
+          listProducts({ sort: 'newest', limit: 4 }),
+          listCategories(),
+        ]);
+
+        if (!active) return;
+
+        const newest = newestData.products || [];
+        setFeatured((featuredData.products || []).length ? featuredData.products : newest);
+        setTrending((trendingData.products || []).length ? trendingData.products : newest);
+        setCategories(categoriesData.categories || []);
+      } catch (error) {
+        if (active) showToast(error.message || 'Unable to load the storefront.', 'error');
+      } finally {
+        if (active) {
+          setProductsLoading(false);
+          setCategoriesLoading(false);
+        }
+      }
+    })();
+
+    return () => { active = false; };
+  }, []);
 
   const handleAiSearch = (e) => {
     e.preventDefault();
@@ -144,23 +177,41 @@ export default function HomePage() {
         </motion.div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
-          {categories.map((cat, i) => (
-            <motion.div
-              key={cat.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.06 }}
-            >
-              <Link
-                to={`/products?category=${cat.id}`}
-                className="flex flex-col items-center gap-3 p-5 bg-white rounded-2xl border border-gray-100 hover:border-[#831843]/20 hover:shadow-lg hover:shadow-[#831843]/8 transition-all duration-300 group text-center"
-              >
-                <span className="text-3xl group-hover:scale-110 transition-transform duration-200">{cat.icon}</span>
-                <span className="font-display font-semibold text-xs text-[#17211D] leading-tight">{cat.label}</span>
+          {categoriesLoading ? (
+            Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-3 p-5 bg-white rounded-2xl border border-gray-100">
+                <div className="skeleton w-9 h-9 rounded-full" />
+                <div className="skeleton h-3 w-16 rounded" />
+              </div>
+            ))
+          ) : categories.length === 0 ? (
+            <div className="col-span-full bg-white rounded-2xl border border-gray-100 p-10 text-center">
+              <div className="text-3xl mb-2">🗂️</div>
+              <p className="font-display font-semibold text-[#17211D]">Categories are coming soon</p>
+              <p className="text-[#6B756F] text-sm mt-1">Check back shortly or browse all products.</p>
+              <Link to="/products" className="inline-block mt-4 text-sm font-semibold text-[#831843] hover:underline">
+                Browse products →
               </Link>
-            </motion.div>
-          ))}
+            </div>
+          ) : (
+            categories.map((cat, i) => (
+              <motion.div
+                key={cat.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.06 }}
+              >
+                <Link
+                  to={`/products?category=${cat.slug || cat.id}`}
+                  className="flex flex-col items-center gap-3 p-5 bg-white rounded-2xl border border-gray-100 hover:border-[#831843]/20 hover:shadow-lg hover:shadow-[#831843]/8 transition-all duration-300 group text-center"
+                >
+                  <span className="text-3xl group-hover:scale-110 transition-transform duration-200">{cat.icon || '📦'}</span>
+                  <span className="font-display font-semibold text-xs text-[#17211D] leading-tight">{cat.label || cat.name}</span>
+                </Link>
+              </motion.div>
+            ))
+          )}
         </div>
       </section>
 
@@ -176,11 +227,17 @@ export default function HomePage() {
           </Link>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featured.map(product => (
-            <ProductCard key={product.id} product={product} onQuickView={setQuickViewProduct} />
-          ))}
-        </div>
+        {productsLoading ? (
+          <ProductGridSkeleton />
+        ) : featured.length === 0 ? (
+          <EmptyProducts />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featured.map(product => (
+              <ProductCard key={product.id} product={product} onQuickView={setQuickViewProduct} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* AI Showcase */}
@@ -248,11 +305,17 @@ export default function HomePage() {
           </Link>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {trending.map(product => (
-            <ProductCard key={product.id} product={product} onQuickView={setQuickViewProduct} />
-          ))}
-        </div>
+        {productsLoading ? (
+          <ProductGridSkeleton />
+        ) : trending.length === 0 ? (
+          <EmptyProducts />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {trending.map(product => (
+              <ProductCard key={product.id} product={product} onQuickView={setQuickViewProduct} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Why JSS */}
@@ -346,6 +409,40 @@ export default function HomePage() {
       </section>
 
       <QuickViewModal product={quickViewProduct} onClose={() => setQuickViewProduct(null)} />
+    </div>
+  );
+}
+
+function ProductGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="bg-white rounded-2xl overflow-hidden border border-gray-100">
+          <div className="skeleton aspect-square" />
+          <div className="p-4 space-y-3">
+            <div className="skeleton h-3 w-1/3 rounded" />
+            <div className="skeleton h-4 w-4/5 rounded" />
+            <div className="skeleton h-3 w-2/3 rounded" />
+            <div className="skeleton h-8 w-full rounded-xl" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyProducts() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+      <div className="text-4xl mb-3">🛍️</div>
+      <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">Products are coming soon</h3>
+      <p className="text-[#6B756F] text-sm mb-6">Our shelves are being stocked. Check back shortly to see what is new.</p>
+      <Link
+        to="/products"
+        className="inline-flex items-center gap-2 px-6 py-3 bg-[#831843] text-white rounded-xl font-semibold text-sm hover:bg-[#9F1239] transition-colors"
+      >
+        Browse Products →
+      </Link>
     </div>
   );
 }
