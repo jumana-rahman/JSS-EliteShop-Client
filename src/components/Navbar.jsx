@@ -11,7 +11,7 @@ const navLinks = [
 ];
 
 export default function Navbar() {
-  const { cartCount, wishlist, isLoggedIn, user, logout } = useApp();
+  const { cartCount, wishlist, isLoggedIn, isAdmin, user, logout } = useApp();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -124,9 +124,9 @@ export default function Navbar() {
                     className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/10 transition-all duration-200"
                   >
                     <div className="w-7 h-7 rounded-full bg-[#BE185D] flex items-center justify-center text-white font-bold text-xs">
-                      {user?.name.charAt(0)}
+                      {user?.name?.charAt(0)}
                     </div>
-                    <span className="text-white/90 text-sm font-medium hidden lg:block">{user?.name.split(' ')[0]}</span>
+                    <span className="text-white/90 text-sm font-medium hidden lg:block">{user?.name?.split(' ')[0]}</span>
                   </button>
                 ) : (
                   <Link
@@ -154,7 +154,7 @@ export default function Navbar() {
                         { label: 'Dashboard', path: '/dashboard' },
                         { label: 'My Orders', path: '/dashboard/orders' },
                         { label: 'Wishlist', path: '/wishlist' },
-                        { label: 'Admin Panel', path: '/admin' },
+                        ...(isAdmin ? [{ label: 'Admin Panel', path: '/admin' }] : []),
                       ].map(item => (
                         <Link key={item.path} to={item.path} className="flex items-center px-4 py-2.5 text-sm text-[#17211D] hover:bg-gray-50 transition-colors">
                           {item.label}

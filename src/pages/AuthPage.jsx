@@ -1,45 +1,66 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
 
 export default function AuthPage({ mode: initialMode = 'login' }) {
   const [mode, setMode] = useState(initialMode);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [forgotSent, setForgotSent] = useState(false);
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [errors, setErrors] = useState({});
-  const { login, showToast } = useApp();
+  const [formError, setFormError] = useState('');
+  const { user, login, register, authBusy } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from || '/dashboard';
+
+  if (user) {
+    return <Navigate to={from} replace />;
+  }
 
   const validate = () => {
-    const e = {};
-    if (!email || !email.includes('@')) e.email = 'Please enter a valid email address';
-    if (mode !== 'forgot' && password.length < 6) e.password = 'Password must be at least 6 characters';
-    if (mode === 'register' && !name) e.name = 'Please enter your name';
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    const next = {};
+
+    if (!email || !email.includes('@')) next.email = 'Please enter a valid email address';
+    if (password.length < 8) next.password = 'Password must be at least 8 characters';
+
+    if (mode === 'register') {
+      if (name.trim().length < 2) next.name = 'Please enter your full name';
+      if (phone.trim().length < 6) next.phone = 'Please enter a valid phone number';
+      if (confirmPassword !== password) next.confirmPassword = 'Passwords do not match';
+    }
+
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError('');
+
     if (!validate()) return;
 
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-
-    if (mode === 'forgot') {
-      setForgotSent(true);
-      setLoading(false);
-      return;
+    try {
+      if (mode === 'login') {
+        await login(email, password, rememberMe);
+      } else {
+        await register({ name: name.trim(), email: email.trim(), password, phone: phone.trim() });
+      }
+      navigate(from, { replace: true });
+    } catch (error) {
+      setFormError(error.message || 'Something went wrong. Please try again.');
     }
-
-    login(email, password);
-    setLoading(false);
-    navigate('/dashboard');
   };
+
+  const inputClass = (field) =>
+    `w-full px-4 py-3 border rounded-xl text-sm text-[#17211D] outline-none focus:border-[#831843] transition-colors ${
+      errors[field] ? 'border-red-400' : 'border-gray-200'
+    }`;
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] pt-16 flex items-center justify-center px-4">
@@ -61,98 +82,120 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
           transition={{ duration: 0.3 }}
           className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm"
         >
-          {forgotSent ? (
-            <div className="text-center py-4">
-              <div className="w-16 h-16 bg-[#9F1239]/10 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">📧</div>
-              <h2 className="font-display font-bold text-xl text-[#17211D] mb-2">Check Your Email</h2>
-              <p className="text-[#6B756F] text-sm mb-6">We've sent a password reset link to {email}.</p>
-              <button onClick={() => { setMode('login'); setForgotSent(false); }} className="text-[#831843] font-medium text-sm hover:underline">
-                ← Back to Login
-              </button>
+          <h2 className="font-display font-bold text-2xl text-[#17211D] mb-1">
+            {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+          </h2>
+          <p className="text-[#6B756F] text-sm mb-7">
+            {mode === 'login'
+              ? 'Sign in to your JSS EliteShop account'
+              : 'Join thousands of happy shoppers'}
+          </p>
+
+          {formError && (
+            <div className="mb-5 px-4 py-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm">
+              {formError}
             </div>
-          ) : (
-            <>
-              <h2 className="font-display font-bold text-2xl text-[#17211D] mb-1">
-                {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Account' : 'Reset Password'}
-              </h2>
-              <p className="text-[#6B756F] text-sm mb-7">
-                {mode === 'login' ? 'Sign in to your JSS EliteShop account' :
-                 mode === 'register' ? 'Join thousands of happy shoppers' :
-                 'Enter your email to receive a reset link'}
-              </p>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {mode === 'register' && (
-                  <div>
-                    <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Full Name</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      placeholder="Sarah Johnson"
-                      className={`w-full px-4 py-3 border rounded-xl text-sm text-[#17211D] outline-none focus:border-[#831843] transition-colors ${errors.name ? 'border-red-400' : 'border-gray-200'}`}
-                    />
-                    {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Email Address</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="sarah@example.com"
-                    className={`w-full px-4 py-3 border rounded-xl text-sm text-[#17211D] outline-none focus:border-[#831843] transition-colors ${errors.email ? 'border-red-400' : 'border-gray-200'}`}
-                  />
-                  {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
-                </div>
-
-                {mode !== 'forgot' && (
-                  <div>
-                    <div className="flex justify-between mb-1.5">
-                      <label className="text-xs font-semibold text-[#6B756F] uppercase tracking-wide">Password</label>
-                      {mode === 'login' && (
-                        <button type="button" onClick={() => setMode('forgot')} className="text-xs text-[#9F1239] font-medium hover:underline">
-                          Forgot password?
-                        </button>
-                      )}
-                    </div>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder={mode === 'register' ? 'At least 6 characters' : '••••••••'}
-                      className={`w-full px-4 py-3 border rounded-xl text-sm text-[#17211D] outline-none focus:border-[#831843] transition-colors ${errors.password ? 'border-red-400' : 'border-gray-200'}`}
-                    />
-                    {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-4 bg-[#831843] text-white rounded-2xl font-display font-bold hover:bg-[#9F1239] transition-all duration-200 disabled:opacity-80 flex items-center justify-center gap-3 mt-2"
-                >
-                  {loading ? (
-                    <><div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />Processing...</>
-                  ) : (
-                    mode === 'login' ? 'Sign In' : mode === 'register' ? 'Create Account' : 'Send Reset Link'
-                  )}
-                </button>
-              </form>
-
-              <div className="mt-6 text-center text-sm text-[#6B756F]">
-                {mode === 'login' ? (
-                  <>Don't have an account? <button onClick={() => setMode('register')} className="text-[#831843] font-semibold hover:underline">Sign Up</button></>
-                ) : mode === 'register' ? (
-                  <>Already have an account? <button onClick={() => setMode('login')} className="text-[#831843] font-semibold hover:underline">Sign In</button></>
-                ) : (
-                  <button onClick={() => setMode('login')} className="text-[#831843] font-medium hover:underline">← Back to Login</button>
-                )}
-              </div>
-            </>
           )}
+
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            {mode === 'register' && (
+              <div>
+                <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Full Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Sarah Johnson"
+                  className={inputClass('name')}
+                />
+                {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Email Address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="sarah@example.com"
+                className={inputClass('email')}
+              />
+              {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+            </div>
+
+            {mode === 'register' && (
+              <div>
+                <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Phone Number</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="+880 1XXX-XXXXXX"
+                  className={inputClass('phone')}
+                />
+                {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder={mode === 'register' ? 'At least 8 characters' : '••••••••'}
+                className={inputClass('password')}
+              />
+              {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
+            </div>
+
+            {mode === 'register' && (
+              <div>
+                <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Confirm Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter your password"
+                  className={inputClass('confirmPassword')}
+                />
+                {errors.confirmPassword && <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>}
+              </div>
+            )}
+
+            {mode === 'login' && (
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 accent-[#831843]"
+                />
+                <span className="text-sm text-[#6B756F]">Remember me on this device</span>
+              </label>
+            )}
+
+            <button
+              type="submit"
+              disabled={authBusy}
+              className="w-full py-4 bg-[#831843] text-white rounded-2xl font-display font-bold hover:bg-[#9F1239] transition-all duration-200 disabled:opacity-80 flex items-center justify-center gap-3 mt-2"
+            >
+              {authBusy ? (
+                <><div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />Processing...</>
+              ) : (
+                mode === 'login' ? 'Sign In' : 'Create Account'
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-[#6B756F]">
+            {mode === 'login' ? (
+              <>Don't have an account? <button onClick={() => { setMode('register'); setFormError(''); setErrors({}); }} className="text-[#831843] font-semibold hover:underline">Sign Up</button></>
+            ) : (
+              <>Already have an account? <button onClick={() => { setMode('login'); setFormError(''); setErrors({}); }} className="text-[#831843] font-semibold hover:underline">Sign In</button></>
+            )}
+          </div>
         </motion.div>
       </div>
     </div>
