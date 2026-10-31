@@ -25,6 +25,23 @@ export function ProtectedRoute({ children }) {
   return children;
 }
 
+export function CustomerRoute({ children }) {
+  const { isLoggedIn, isAdmin, authLoading } = useApp();
+  const location = useLocation();
+
+  if (authLoading) return <AuthLoadingScreen />;
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (isAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return children;
+}
+
 export function AdminRoute({ children }) {
   const { isLoggedIn, isAdmin, authLoading } = useApp();
   const location = useLocation();

@@ -66,9 +66,10 @@ export function AppProvider({ children }) {
   const login = async (email, password, rememberMe = true) => {
     setAuthBusy(true);
     try {
-      const { error } = await authClient.signIn.email({ email, password, rememberMe });
+      const { data, error } = await authClient.signIn.email({ email, password, rememberMe });
       if (error) throw new Error(error.message || 'Unable to sign in. Please try again.');
       showToast('Welcome back! You are now logged in.', 'success');
+      return data?.user ?? null;
     } finally {
       setAuthBusy(false);
     }
@@ -77,9 +78,10 @@ export function AppProvider({ children }) {
   const register = async ({ name, email, password, phone }) => {
     setAuthBusy(true);
     try {
-      const { error } = await authClient.signUp.email({ name, email, password, phone });
+      const { data, error } = await authClient.signUp.email({ name, email, password, phone });
       if (error) throw new Error(error.message || 'Unable to create your account.');
       showToast('Account created. Welcome to JSS EliteShop!', 'success');
+      return data?.user ?? null;
     } finally {
       setAuthBusy(false);
     }

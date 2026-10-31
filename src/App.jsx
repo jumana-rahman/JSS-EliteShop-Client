@@ -17,7 +17,7 @@ import DashboardPage from './pages/DashboardPage';
 import AdminPage from './pages/AdminPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
-import { ProtectedRoute, AdminRoute } from './routes/Guards';
+import { ProtectedRoute, CustomerRoute, AdminRoute } from './routes/Guards';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -43,10 +43,10 @@ function AppShell() {
         <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
         <Route path="/order-confirmation" element={<ProtectedRoute><OrderConfirmationPage /></ProtectedRoute>} />
-        <Route path="/login" element={<AuthPage mode="login" />} />
-        <Route path="/register" element={<AuthPage mode="register" />} />
-        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-        <Route path="/dashboard/orders" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/register" element={<AuthPage />} />
+        <Route path="/dashboard" element={<CustomerRoute><DashboardPage /></CustomerRoute>} />
+        <Route path="/dashboard/orders" element={<CustomerRoute><DashboardPage /></CustomerRoute>} />
         <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />

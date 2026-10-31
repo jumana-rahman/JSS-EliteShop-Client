@@ -150,12 +150,14 @@ export default function Navbar() {
                         <p className="font-semibold text-[#17211D] text-sm">{user?.name}</p>
                         <p className="text-xs text-[#6B756F]">{user?.email}</p>
                       </div>
-                      {[
-                        { label: 'Dashboard', path: '/dashboard' },
-                        { label: 'My Orders', path: '/dashboard/orders' },
-                        { label: 'Wishlist', path: '/wishlist' },
-                        ...(isAdmin ? [{ label: 'Admin Panel', path: '/admin' }] : []),
-                      ].map(item => (
+                      {(isAdmin
+                        ? [{ label: 'Admin Panel', path: '/admin' }]
+                        : [
+                            { label: 'Dashboard', path: '/dashboard' },
+                            { label: 'My Orders', path: '/dashboard/orders' },
+                            { label: 'Wishlist', path: '/wishlist' },
+                          ]
+                      ).map(item => (
                         <Link key={item.path} to={item.path} className="flex items-center px-4 py-2.5 text-sm text-[#17211D] hover:bg-gray-50 transition-colors">
                           {item.label}
                         </Link>

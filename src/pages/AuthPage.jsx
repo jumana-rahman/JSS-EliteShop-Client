@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
 
-export default function AuthPage({ mode: initialMode = 'login' }) {
-  const [mode, setMode] = useState(initialMode);
+export default function AuthPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -17,10 +16,17 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const mode = location.pathname === '/register' ? 'register' : 'login';
   const from = location.state?.from || '/dashboard';
+  const destination = user?.role === 'admin' ? '/admin' : from;
+
+  useEffect(() => {
+    setFormError('');
+    setErrors({});
+  }, [mode]);
 
   if (user) {
-    return <Navigate to={from} replace />;
+    return <Navigate to={destination} replace />;
   }
 
   const validate = () => {
@@ -46,12 +52,12 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
     if (!validate()) return;
 
     try {
-      if (mode === 'login') {
-        await login(email, password, rememberMe);
-      } else {
-        await register({ name: name.trim(), email: email.trim(), password, phone: phone.trim() });
-      }
-      navigate(from, { replace: true });
+      const signedInUser =
+        mode === 'login'
+          ? await login(email, password, rememberMe)
+          : await register({ name: name.trim(), email: email.trim(), password, phone: phone.trim() });
+
+      navigate(signedInUser?.role === 'admin' ? '/admin' : from, { replace: true });
     } catch (error) {
       setFormError(error.message || 'Something went wrong. Please try again.');
     }
@@ -191,9 +197,9 @@ export default function AuthPage({ mode: initialMode = 'login' }) {
 
           <div className="mt-6 text-center text-sm text-[#6B756F]">
             {mode === 'login' ? (
-              <>Don't have an account? <button onClick={() => { setMode('register'); setFormError(''); setErrors({}); }} className="text-[#831843] font-semibold hover:underline">Sign Up</button></>
+              <>Don't have an account? <Link to="/register" state={location.state} className="text-[#831843] font-semibold hover:underline">Sign Up</Link></>
             ) : (
-              <>Already have an account? <button onClick={() => { setMode('login'); setFormError(''); setErrors({}); }} className="text-[#831843] font-semibold hover:underline">Sign In</button></>
+              <>Already have an account? <Link to="/login" state={location.state} className="text-[#831843] font-semibold hover:underline">Sign In</Link></>
             )}
           </div>
         </motion.div>
