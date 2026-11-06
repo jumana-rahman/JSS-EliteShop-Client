@@ -4,7 +4,7 @@ import { useApp } from '../contexts/AppContext';
 import { StarRating } from '../components/ProductCard';
 
 export default function WishlistPage() {
-  const { wishlist, toggleWishlist, addToCart } = useApp();
+  const { wishlist, toggleWishlist, moveToCart } = useApp();
 
   if (wishlist.length === 0) {
     return (
@@ -79,7 +79,7 @@ export default function WishlistPage() {
                   </div>
                   <div className="flex gap-2 mt-3">
                     <button
-                      onClick={() => addToCart(product)}
+                      onClick={() => moveToCart(product)}
                       disabled={!product.inStock}
                       className="flex-1 py-2.5 bg-[#831843] text-white rounded-xl text-xs font-semibold hover:bg-[#9F1239] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >

@@ -1,67 +1,379 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { authClient } from '../lib/authClient';
+import {
+  getCart,
+  addCartItem,
+  updateCartItem,
+  removeCartItem,
+  clearRemoteCart,
+  mergeCart,
+} from '../services/cart';
+import {
+  getWishlist,
+  addWishlistItem,
+  removeWishlistItem,
+  mergeWishlist,
+} from '../services/wishlist';
 
 const AppContext = createContext(null);
+
+const GUEST_CART_KEY = 'jss_cart';
+const GUEST_WISHLIST_KEY = 'jss_wishlist';
+
+function readGuestCollection(key) {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeGuestCollection(key, value) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    return;
+  }
+}
+
+function removeGuestCollection(key) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    return;
+  }
+}
 
 export function AppProvider({ children }) {
   const { data: session, isPending } = authClient.useSession();
   const user = session?.user ?? null;
+  const userId = user?.id ?? null;
 
-  const [cart, setCart] = useState([]);
-  const [wishlist, setWishlist] = useState([]);
+  const [cart, setCart] = useState(() => readGuestCollection(GUEST_CART_KEY));
+  const [wishlist, setWishlist] = useState(() => readGuestCollection(GUEST_WISHLIST_KEY));
+  const [guestMode, setGuestMode] = useState(true);
   const [toast, setToast] = useState(null);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [authBusy, setAuthBusy] = useState(false);
 
-  // Load guest cart/wishlist
+  const cartRef = useRef(cart);
+  const wishlistRef = useRef(wishlist);
+  const syncUserRef = useRef(undefined);
+  const syncRequestRef = useRef(0);
+
+  cartRef.current = cart;
+  wishlistRef.current = wishlist;
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
   useEffect(() => {
-    const savedCart = localStorage.getItem('jss_cart');
-    const savedWishlist = localStorage.getItem('jss_wishlist');
-    if (savedCart) setCart(JSON.parse(savedCart));
-    if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
-  }, []);
+    if (!guestMode) return;
+    writeGuestCollection(GUEST_CART_KEY, cart);
+  }, [cart, guestMode]);
 
-  useEffect(() => { localStorage.setItem('jss_cart', JSON.stringify(cart)); }, [cart]);
-  useEffect(() => { localStorage.setItem('jss_wishlist', JSON.stringify(wishlist)); }, [wishlist]);
+  useEffect(() => {
+    if (!guestMode) return;
+    writeGuestCollection(GUEST_WISHLIST_KEY, wishlist);
+  }, [wishlist, guestMode]);
 
-  const addToCart = (product, quantity = 1) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.product.id === product.id);
-      if (existing) {
-        return prev.map(i => i.product.id === product.id ? { ...i, quantity: i.quantity + quantity } : i);
+  useEffect(() => {
+    if (isPending) return;
+
+    const nextUserId = userId || null;
+    const previousUserId = syncUserRef.current;
+    if (previousUserId === nextUserId && previousUserId !== undefined) return;
+
+    syncUserRef.current = nextUserId;
+    const requestId = ++syncRequestRef.current;
+
+    if (!nextUserId) {
+      if (previousUserId) {
+        setGuestMode(true);
+        setCart([]);
+        setWishlist([]);
+      }
+      return;
+    }
+
+    setGuestMode(false);
+
+    const guestCart = readGuestCollection(GUEST_CART_KEY);
+    const guestWishlist = readGuestCollection(GUEST_WISHLIST_KEY);
+    const guestCartItems = guestCart
+      .map((item) => ({
+        productId: item.product?.id,
+        quantity: item.quantity,
+      }))
+      .filter((item) => item.productId);
+    const guestWishlistIds = [
+      ...new Set(guestWishlist.map((product) => product?.id).filter(Boolean)),
+    ];
+
+    (async () => {
+      try {
+        const [cartResult, wishlistResult] = await Promise.all([
+          guestCartItems.length ? mergeCart(guestCartItems) : getCart(),
+          guestWishlistIds.length
+            ? mergeWishlist(guestWishlistIds)
+            : getWishlist(),
+        ]);
+
+        if (requestId !== syncRequestRef.current) return;
+
+        setCart(cartResult.cart?.items || []);
+        setWishlist(wishlistResult.wishlist?.items || []);
+        removeGuestCollection(GUEST_CART_KEY);
+        removeGuestCollection(GUEST_WISHLIST_KEY);
+      } catch (error) {
+        if (requestId !== syncRequestRef.current) return;
+        showToast(
+          error.message || 'Unable to sync your cart and wishlist.',
+          'error'
+        );
+      }
+    })();
+  }, [userId, isPending]);
+
+  const addToCart = async (product, quantity = 1) => {
+    if (!product?.id) return false;
+
+    if (userId) {
+      try {
+        const data = await addCartItem(product.id, quantity);
+        setCart(data.cart?.items || []);
+        showToast(`${product.name} added to cart`, 'success');
+        return true;
+      } catch (error) {
+        showToast(
+          error.message || 'Unable to add this item to your cart.',
+          'error'
+        );
+        return false;
+      }
+    }
+
+    const existing = cartRef.current.find((item) => item.product.id === product.id);
+    const nextQuantity = (existing?.quantity || 0) + quantity;
+    const stock = Number(product.stockCount ?? product.stock ?? Infinity);
+
+    if (stock <= 0) {
+      showToast('This product is out of stock.', 'error');
+      return false;
+    }
+
+    if (nextQuantity > stock) {
+      showToast(
+        `Only ${stock} item${stock === 1 ? '' : 's'} available in stock.`,
+        'error'
+      );
+      return false;
+    }
+
+    setCart((prev) => {
+      const item = prev.find((entry) => entry.product.id === product.id);
+      if (item) {
+        return prev.map((entry) =>
+          entry.product.id === product.id
+            ? { ...entry, quantity: entry.quantity + quantity }
+            : entry
+        );
       }
       return [...prev, { product, quantity }];
     });
+
     showToast(`${product.name} added to cart`, 'success');
+    return true;
   };
 
-  const removeFromCart = (productId) => {
-    setCart(prev => prev.filter(i => i.product.id !== productId));
-  };
-
-  const updateQuantity = (productId, qty) => {
-    if (qty <= 0) { removeFromCart(productId); return; }
-    setCart(prev => prev.map(i => i.product.id === productId ? { ...i, quantity: qty } : i));
-  };
-
-  const clearCart = () => setCart([]);
-
-  const cartTotal = cart.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
-  const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
-
-  const toggleWishlist = (product) => {
-    setWishlist(prev => {
-      const isIn = prev.find(p => p.id === product.id);
-      if (isIn) {
-        showToast('Removed from wishlist', 'info');
-        return prev.filter(p => p.id !== product.id);
+  const removeFromCart = async (productId) => {
+    if (userId) {
+      try {
+        const data = await removeCartItem(productId);
+        setCart(data.cart?.items || []);
+      } catch (error) {
+        showToast(error.message || 'Unable to remove this item.', 'error');
       }
-      showToast(`${product.name} added to wishlist`, 'success');
-      return [...prev, product];
-    });
+      return;
+    }
+
+    setCart((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
-  const isWishlisted = (productId) => wishlist.some(p => p.id === productId);
+  const updateQuantity = async (productId, quantity) => {
+    if (quantity <= 0) {
+      await removeFromCart(productId);
+      return;
+    }
+
+    if (userId) {
+      try {
+        const data = await updateCartItem(productId, quantity);
+        setCart(data.cart?.items || []);
+      } catch (error) {
+        showToast(error.message || 'Unable to update this item.', 'error');
+      }
+      return;
+    }
+
+    const item = cartRef.current.find((entry) => entry.product.id === productId);
+    if (!item) return;
+
+    const stock = Number(
+      item.product.stockCount ?? item.product.stock ?? Infinity
+    );
+
+    if (quantity > stock) {
+      showToast(
+        `Only ${stock} item${stock === 1 ? '' : 's'} available in stock.`,
+        'error'
+      );
+      return;
+    }
+
+    setCart((prev) =>
+      prev.map((entry) =>
+        entry.product.id === productId ? { ...entry, quantity } : entry
+      )
+    );
+  };
+
+  const clearCart = async () => {
+    if (userId) {
+      try {
+        const data = await clearRemoteCart();
+        setCart(data.cart?.items || []);
+      } catch (error) {
+        showToast(error.message || 'Unable to clear your cart.', 'error');
+      }
+      return;
+    }
+
+    setCart([]);
+  };
+
+  const cartTotal = cart.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
+    0
+  );
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  const toggleWishlist = async (product) => {
+    if (!product?.id) return;
+
+    const isInWishlist = wishlistRef.current.some(
+      (item) => item.id === product.id
+    );
+
+    if (userId) {
+      try {
+        const data = isInWishlist
+          ? await removeWishlistItem(product.id)
+          : await addWishlistItem(product.id);
+        setWishlist(data.wishlist?.items || []);
+        showToast(
+          isInWishlist ? 'Removed from wishlist' : `${product.name} added to wishlist`,
+          isInWishlist ? 'info' : 'success'
+        );
+      } catch (error) {
+        showToast(
+          error.message || 'Unable to update your wishlist.',
+          'error'
+        );
+      }
+      return;
+    }
+
+    if (isInWishlist) {
+      setWishlist((prev) => prev.filter((item) => item.id !== product.id));
+      showToast('Removed from wishlist', 'info');
+      return;
+    }
+
+    setWishlist((prev) => [...prev, product]);
+    showToast(`${product.name} added to wishlist`, 'success');
+  };
+
+  const moveToCart = async (product) => {
+    if (!product?.id) return false;
+
+    const isInWishlist = wishlistRef.current.some(
+      (item) => item.id === product.id
+    );
+
+    if (userId) {
+      let cartResult;
+
+      try {
+        cartResult = await addCartItem(product.id, 1);
+        setCart(cartResult.cart?.items || []);
+      } catch (error) {
+        showToast(error.message || 'Unable to move this item to your cart.', 'error');
+        return false;
+      }
+
+      if (isInWishlist) {
+        try {
+          const wishlistResult = await removeWishlistItem(product.id);
+          setWishlist(wishlistResult.wishlist?.items || []);
+        } catch {
+          showToast('Added to cart, but could not remove it from your wishlist.', 'info');
+        }
+      }
+
+      showToast(`${product.name} moved to cart`, 'success');
+      return true;
+    }
+
+    const existing = cartRef.current.find((item) => item.product.id === product.id);
+    const nextQuantity = (existing?.quantity || 0) + 1;
+    const stock = Number(product.stockCount ?? product.stock ?? Infinity);
+
+    if (stock <= 0) {
+      showToast('This product is out of stock.', 'error');
+      return false;
+    }
+
+    if (nextQuantity > stock) {
+      showToast(
+        `Only ${stock} item${stock === 1 ? '' : 's'} available in stock.`,
+        'error'
+      );
+      return false;
+    }
+
+    setCart((prev) => {
+      const item = prev.find((entry) => entry.product.id === product.id);
+      if (item) {
+        return prev.map((entry) =>
+          entry.product.id === product.id
+            ? { ...entry, quantity: entry.quantity + 1 }
+            : entry
+        );
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
+
+    if (isInWishlist) {
+      setWishlist((prev) => prev.filter((item) => item.id !== product.id));
+    }
+
+    showToast(`${product.name} moved to cart`, 'success');
+    return true;
+  };
+
+  const isWishlisted = (productId) =>
+    wishlist.some((product) => product.id === productId);
 
   const login = async (email, password, rememberMe = true) => {
     setAuthBusy(true);
@@ -97,15 +409,10 @@ export function AppProvider({ children }) {
     }
   };
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
-  };
-
   return (
     <AppContext.Provider value={{
       cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount,
-      wishlist, toggleWishlist, isWishlisted,
+      wishlist, wishlistCount: wishlist.length, toggleWishlist, moveToCart, isWishlisted,
       user, isLoggedIn: !!user, isAdmin: user?.role === 'admin',
       authLoading: isPending, authBusy, login, register, logout,
       toast, showToast,
