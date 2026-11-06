@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import { createProduct, updateProduct, uploadImage } from '../../services/products';
 
-const inputClass = 'w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#17211D] outline-none focus:border-[#831843]/50 bg-white';
+const inputBase = 'w-full px-3 py-2.5 rounded-xl border text-sm text-[#17211D] outline-none bg-white';
+const inputClass = `${inputBase} border-gray-200 focus:border-[#831843]/50`;
 const emptySpec = { key: '', value: '' };
 
 function emptyForm() {
@@ -37,13 +38,18 @@ export default function ProductFormModal({ open, product, categories, onClose, o
   const [form, setForm] = useState(emptyForm);
   const [imageUrl, setImageUrl] = useState('');
   const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  const fieldClass = (field) =>
+    `${inputBase} ${errors[field] ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#831843]/50'}`;
 
   useEffect(() => {
     if (!open) return;
 
     setError('');
+    setErrors({});
     setSaving(false);
     setUploading(false);
     setImageUrl('');
@@ -79,7 +85,19 @@ export default function ProductFormModal({ open, product, categories, onClose, o
   const selectedCategory = categories.find(category => category.id === form.categoryId);
   const subcategories = selectedCategory?.subcategories || [];
 
-  const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  const clearFieldError = (key) => {
+    setErrors(prev => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const update = (key, value) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+    clearFieldError(key);
+  };
 
   const changeCategory = (categoryId) => {
     const nextCategory = categories.find(category => category.id === categoryId);
@@ -92,6 +110,13 @@ export default function ProductFormModal({ open, product, categories, onClose, o
       categoryId,
       subcategoryId: validSubcategory ? prev.subcategoryId : '',
     }));
+
+    setErrors(prev => {
+      const next = { ...prev };
+      delete next.categoryId;
+      delete next.subcategoryId;
+      return next;
+    });
   };
 
   const addImageUrl = () => {
@@ -109,6 +134,7 @@ export default function ProductFormModal({ open, product, categories, onClose, o
 
     setImageUrl('');
     setError('');
+    clearFieldError('images');
   };
 
   const removeImage = (url) => {
@@ -143,6 +169,7 @@ export default function ProductFormModal({ open, product, categories, onClose, o
       const dataUrl = await readFileAsDataUrl(file);
       const data = await uploadImage(dataUrl);
       setForm(prev => ({ ...prev, images: [...prev.images, data.url].slice(0, 8) }));
+      clearFieldError('images');
     } catch (err) {
       setError(err.message || 'Image upload failed. Please try again.');
     } finally {
@@ -170,48 +197,67 @@ export default function ProductFormModal({ open, product, categories, onClose, o
     }));
   };
 
+  const validate = () => {
+    const next = {};
+    const name = form.name.trim();
+    const description = form.description.trim();
+    const priceValue = String(form.price).trim();
+    const originalPriceValue = String(form.originalPrice).trim();
+    const stockValue = String(form.stock).trim();
+
+    if (!name) next.name = 'Product name is required.';
+    else if (name.length < 2) next.name = 'Product name must be at least 2 characters.';
+
+    if (!description) next.description = 'Description is required.';
+    if (!form.categoryId) next.categoryId = 'Category is required.';
+    if (!form.subcategoryId) next.subcategoryId = 'Subcategory is required.';
+
+    let price = null;
+    if (!priceValue) next.price = 'Selling price is required.';
+    else {
+      price = Number(priceValue);
+      if (!Number.isFinite(price) || price < 0) next.price = 'Enter a valid selling price.';
+    }
+
+    if (originalPriceValue) {
+      const originalPrice = Number(originalPriceValue);
+      if (!Number.isFinite(originalPrice) || originalPrice < 0) {
+        next.originalPrice = 'Enter a valid original price.';
+      } else if (price !== null && originalPrice < price) {
+        next.originalPrice = 'Original price cannot be lower than the selling price.';
+      }
+    }
+
+    if (!stockValue) next.stock = 'Stock is required.';
+    else {
+      const stock = Number(stockValue);
+      if (!Number.isInteger(stock) || stock < 0) {
+        next.stock = 'Stock must be a whole number of 0 or more.';
+      }
+    }
+
+    if (form.images.length === 0) next.images = 'At least one image is required.';
+
+    return next;
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
 
-    if (form.name.trim().length < 2) {
-      setError('Product name must be at least 2 characters.');
+    const nextErrors = validate();
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
       return;
     }
 
-    if (form.description.trim().length < 10) {
-      setError('Description must be at least 10 characters.');
-      return;
-    }
+    setErrors({});
 
-    if (!form.categoryId) {
-      setError('Choose a category for this product.');
-      return;
-    }
-
-    const price = Number(form.price);
-    const originalPrice = form.originalPrice === '' ? price : Number(form.originalPrice);
-    const stock = Number(form.stock);
-
-    if (!Number.isFinite(price) || price < 0) {
-      setError('Enter a valid price.');
-      return;
-    }
-
-    if (!Number.isFinite(originalPrice) || originalPrice < 0) {
-      setError('Enter a valid original price.');
-      return;
-    }
-
-    if (originalPrice < price) {
-      setError('Original price cannot be lower than the selling price.');
-      return;
-    }
-
-    if (!Number.isInteger(stock) || stock < 0) {
-      setError('Stock must be a whole number of 0 or more.');
-      return;
-    }
+    const price = Number(String(form.price).trim());
+    const originalPrice = String(form.originalPrice).trim()
+      ? Number(String(form.originalPrice).trim())
+      : price;
+    const stock = Number(String(form.stock).trim());
 
     const specs = Object.fromEntries(
       form.specs
@@ -224,7 +270,7 @@ export default function ProductFormModal({ open, product, categories, onClose, o
       description: form.description.trim(),
       brand: form.brand.trim(),
       categoryId: form.categoryId,
-      subcategoryId: form.subcategoryId || null,
+      subcategoryId: form.subcategoryId,
       price,
       originalPrice,
       stock,
@@ -245,7 +291,18 @@ export default function ProductFormModal({ open, product, categories, onClose, o
 
       onSaved(data.product);
     } catch (err) {
-      setError(err.message || 'Unable to save this product.');
+      const fieldErrors = {};
+      if (Array.isArray(err.details)) {
+        err.details.forEach((detail) => {
+          if (detail?.path) fieldErrors[detail.path] = detail.message || 'This field is invalid.';
+        });
+      }
+
+      if (Object.keys(fieldErrors).length > 0) {
+        setErrors(fieldErrors);
+      } else {
+        setError(err.message || 'Unable to save this product.');
+      }
     } finally {
       setSaving(false);
     }
@@ -279,21 +336,31 @@ export default function ProductFormModal({ open, product, categories, onClose, o
         </div>
       }
     >
-      <form id="product-form" onSubmit={handleSubmit} className="space-y-6">
+      <form id="product-form" onSubmit={handleSubmit} noValidate className="space-y-6">
         {error && (
           <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-700">{error}</div>
         )}
 
+        <p className="text-xs text-[#6B756F]">
+          Fields marked <span className="text-red-500">*</span> are required.
+        </p>
+
         <div className="grid sm:grid-cols-2 gap-4">
           <label className="block sm:col-span-2">
-            <span className="block text-sm font-medium text-[#17211D] mb-1.5">Product Name</span>
+            <span className="block text-sm font-medium text-[#17211D] mb-1.5">
+              Product Name <span className="text-red-500">*</span>
+            </span>
             <input
               value={form.name}
               onChange={e => update('name', e.target.value)}
               placeholder="e.g. Sony WH-1000XM5 Headphones"
-              className={inputClass}
+              className={fieldClass('name')}
+              required
+              aria-required="true"
+              aria-invalid={Boolean(errors.name)}
               autoFocus
             />
+            {errors.name && <span className="block text-xs text-red-500 mt-1">{errors.name}</span>}
           </label>
 
           <label className="block">
@@ -307,35 +374,47 @@ export default function ProductFormModal({ open, product, categories, onClose, o
           </label>
 
           <label className="block">
-            <span className="block text-sm font-medium text-[#17211D] mb-1.5">Category</span>
+            <span className="block text-sm font-medium text-[#17211D] mb-1.5">
+              Category <span className="text-red-500">*</span>
+            </span>
             <select
               value={form.categoryId}
               onChange={e => changeCategory(e.target.value)}
-              className={inputClass}
+              className={fieldClass('categoryId')}
+              required
+              aria-required="true"
+              aria-invalid={Boolean(errors.categoryId)}
             >
               <option value="">Select category</option>
               {categories.map(category => (
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>
+            {errors.categoryId && <span className="block text-xs text-red-500 mt-1">{errors.categoryId}</span>}
           </label>
 
           <label className="block sm:col-span-2">
-            <span className="block text-sm font-medium text-[#17211D] mb-1.5">Subcategory</span>
+            <span className="block text-sm font-medium text-[#17211D] mb-1.5">
+              Subcategory <span className="text-red-500">*</span>
+            </span>
             <select
               value={form.subcategoryId}
               onChange={e => update('subcategoryId', e.target.value)}
               disabled={!form.categoryId || subcategories.length === 0}
-              className={`${inputClass} disabled:bg-gray-50 disabled:text-[#6B756F]`}
+              className={`${fieldClass('subcategoryId')} disabled:bg-gray-50 disabled:text-[#6B756F]`}
+              required
+              aria-required="true"
+              aria-invalid={Boolean(errors.subcategoryId)}
             >
-              <option value="">No subcategory</option>
+              <option value="">{form.categoryId ? 'Select subcategory' : 'Select a category first'}</option>
               {subcategories.map(subcategory => (
                 <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
               ))}
             </select>
+            {errors.subcategoryId && <span className="block text-xs text-red-500 mt-1">{errors.subcategoryId}</span>}
             {form.categoryId && subcategories.length === 0 && (
               <span className="block text-xs text-[#6B756F] mt-1">
-                Add subcategories from the Categories section if you want to group this product further.
+                This category has no subcategories. Add a subcategory first.
               </span>
             )}
           </label>
@@ -345,7 +424,9 @@ export default function ProductFormModal({ open, product, categories, onClose, o
           <h3 className="font-display font-bold text-sm text-[#17211D] mb-3">Pricing & Stock</h3>
           <div className="grid sm:grid-cols-3 gap-4">
             <label className="block">
-              <span className="block text-sm font-medium text-[#17211D] mb-1.5">Selling Price ($)</span>
+              <span className="block text-sm font-medium text-[#17211D] mb-1.5">
+                Selling Price ($) <span className="text-red-500">*</span>
+              </span>
               <input
                 type="number"
                 min="0"
@@ -353,8 +434,12 @@ export default function ProductFormModal({ open, product, categories, onClose, o
                 value={form.price}
                 onChange={e => update('price', e.target.value)}
                 placeholder="0.00"
-                className={inputClass}
+                className={fieldClass('price')}
+                required
+                aria-required="true"
+                aria-invalid={Boolean(errors.price)}
               />
+              {errors.price && <span className="block text-xs text-red-500 mt-1">{errors.price}</span>}
             </label>
 
             <label className="block">
@@ -366,12 +451,16 @@ export default function ProductFormModal({ open, product, categories, onClose, o
                 value={form.originalPrice}
                 onChange={e => update('originalPrice', e.target.value)}
                 placeholder="Leave blank for none"
-                className={inputClass}
+                className={fieldClass('originalPrice')}
+                aria-invalid={Boolean(errors.originalPrice)}
               />
+              {errors.originalPrice && <span className="block text-xs text-red-500 mt-1">{errors.originalPrice}</span>}
             </label>
 
             <label className="block">
-              <span className="block text-sm font-medium text-[#17211D] mb-1.5">Stock</span>
+              <span className="block text-sm font-medium text-[#17211D] mb-1.5">
+                Stock <span className="text-red-500">*</span>
+              </span>
               <input
                 type="number"
                 min="0"
@@ -379,14 +468,20 @@ export default function ProductFormModal({ open, product, categories, onClose, o
                 value={form.stock}
                 onChange={e => update('stock', e.target.value)}
                 placeholder="0"
-                className={inputClass}
+                className={fieldClass('stock')}
+                required
+                aria-required="true"
+                aria-invalid={Boolean(errors.stock)}
               />
+              {errors.stock && <span className="block text-xs text-red-500 mt-1">{errors.stock}</span>}
             </label>
           </div>
         </div>
 
         <div>
-          <h3 className="font-display font-bold text-sm text-[#17211D] mb-3">Images</h3>
+          <h3 className="font-display font-bold text-sm text-[#17211D] mb-3">
+            Images <span className="text-red-500">*</span>
+          </h3>
           <div className="flex gap-2">
             <input
               value={imageUrl}
@@ -434,21 +529,28 @@ export default function ProductFormModal({ open, product, categories, onClose, o
               ))}
             </div>
           ) : (
-            <p className="text-xs text-[#6B756F] mt-3">No images added. A placeholder will be shown in the store.</p>
+            <p className="text-xs text-[#6B756F] mt-3">Add at least one image for this product.</p>
           )}
+          {errors.images && <span className="block text-xs text-red-500 mt-2">{errors.images}</span>}
         </div>
 
         <div>
           <h3 className="font-display font-bold text-sm text-[#17211D] mb-3">Details</h3>
           <label className="block mb-4">
-            <span className="block text-sm font-medium text-[#17211D] mb-1.5">Description</span>
+            <span className="block text-sm font-medium text-[#17211D] mb-1.5">
+              Description <span className="text-red-500">*</span>
+            </span>
             <textarea
               value={form.description}
               onChange={e => update('description', e.target.value)}
               placeholder="Describe the product, its features and what makes it special."
               rows={4}
-              className={`${inputClass} resize-none`}
+              className={`${fieldClass('description')} resize-none`}
+              required
+              aria-required="true"
+              aria-invalid={Boolean(errors.description)}
             />
+            {errors.description && <span className="block text-xs text-red-500 mt-1">{errors.description}</span>}
           </label>
 
           <label className="block mb-4">
