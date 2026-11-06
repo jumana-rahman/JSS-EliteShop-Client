@@ -12,6 +12,8 @@
     "node": ">=20.19.0"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^7.0.1",
+    "@stripe/stripe-js": "^10.2.1",
     "better-auth": "^1.7.14",
     "framer-motion": "^13.4.0",
     "react": "^19.0.0",
