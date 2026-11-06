@@ -266,7 +266,7 @@ export function AppProvider({ children }) {
     (sum, item) => sum + item.product.price * item.quantity,
     0
   );
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartCount = cart.length;
 
   const toggleWishlist = async (product) => {
     if (!product?.id) return;
