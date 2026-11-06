@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import {
   listProducts,
@@ -30,7 +30,13 @@ const adminSections = [
 
 export default function AdminPage() {
   const { isLoggedIn, showToast } = useApp();
-  const [section, setSection] = useState('dashboard');
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const section = pathname.split('/')[2] || 'dashboard';
+
+  const goToSection = (id) => {
+    navigate(id === 'dashboard' ? '/admin' : `/admin/${id}`);
+  };
 
   const [stats, setStats] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -310,9 +316,9 @@ export default function AdminPage() {
           </div>
           <nav className="space-y-1">
             {adminSections.map(item => (
-              <button
+              <Link
                 key={item.id}
-                onClick={() => setSection(item.id)}
+                to={item.id === 'dashboard' ? '/admin' : `/admin/${item.id}`}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   section === item.id
                     ? 'bg-[#831843] text-white'
@@ -321,23 +327,23 @@ export default function AdminPage() {
               >
                 <span>{item.icon}</span>
                 {item.label}
-              </button>
+              </Link>
             ))}
           </nav>
         </aside>
 
         <div className="lg:hidden w-full overflow-x-auto bg-[#17211D] flex gap-1 p-2">
           {adminSections.map(item => (
-            <button
+            <Link
               key={item.id}
-              onClick={() => setSection(item.id)}
+              to={item.id === 'dashboard' ? '/admin' : `/admin/${item.id}`}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
                 section === item.id ? 'bg-[#831843] text-white' : 'text-white/60 hover:text-white'
               }`}
             >
               <span>{item.icon}</span>
               {item.label}
-            </button>
+            </Link>
           ))}
         </div>
 
@@ -349,7 +355,7 @@ export default function AdminPage() {
                 loading={dashboardLoading}
                 lowStock={lowStock}
                 onRefresh={() => setStatsVersion(version => version + 1)}
-                onManageInventory={() => setSection('inventory')}
+                onManageInventory={() => goToSection('inventory')}
               />
             )}
 
@@ -364,7 +370,7 @@ export default function AdminPage() {
                 onAdd={() => setProductModal({ open: true, product: null })}
                 onEdit={product => setProductModal({ open: true, product })}
                 onDelete={requestDeleteProduct}
-                onGoToCategories={() => setSection('categories')}
+                onGoToCategories={() => goToSection('categories')}
               />
             )}
 

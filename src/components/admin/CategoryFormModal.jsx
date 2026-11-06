@@ -5,7 +5,7 @@ import { createCategory, updateCategory } from '../../services/categories';
 const inputClass = 'w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-[#17211D] outline-none focus:border-[#831843]/50 bg-white';
 
 function emptyForm() {
-  return { name: '', icon: '📦', color: '#831843', description: '' };
+  return { name: '', color: '#831843', description: '' };
 }
 
 export default function CategoryFormModal({ open, category, onClose, onSaved }) {
@@ -22,7 +22,6 @@ export default function CategoryFormModal({ open, category, onClose, onSaved }) 
       category
         ? {
             name: category.name || '',
-            icon: category.icon || '📦',
             color: category.color || '#831843',
             description: category.description || '',
           }
@@ -46,7 +45,6 @@ export default function CategoryFormModal({ open, category, onClose, onSaved }) 
     try {
       const payload = {
         name: form.name.trim(),
-        icon: form.icon.trim() || '📦',
         color: form.color || '#831843',
         description: form.description.trim(),
       };
@@ -107,35 +105,22 @@ export default function CategoryFormModal({ open, category, onClose, onSaved }) 
           />
         </label>
 
-        <div className="grid grid-cols-2 gap-4">
-          <label className="block">
-            <span className="block text-sm font-medium text-[#17211D] mb-1.5">Icon</span>
+        <label className="block">
+          <span className="block text-sm font-medium text-[#17211D] mb-1.5">Accent Color</span>
+          <div className="flex items-center gap-2">
             <input
-              value={form.icon}
-              onChange={e => update('icon', e.target.value)}
-              placeholder="📦"
-              maxLength={4}
+              type="color"
+              value={form.color}
+              onChange={e => update('color', e.target.value.toUpperCase())}
+              className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer bg-white"
+            />
+            <input
+              value={form.color}
+              onChange={e => update('color', e.target.value)}
               className={inputClass}
             />
-          </label>
-
-          <label className="block">
-            <span className="block text-sm font-medium text-[#17211D] mb-1.5">Accent Color</span>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={form.color}
-                onChange={e => update('color', e.target.value)}
-                className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer bg-white"
-              />
-              <input
-                value={form.color}
-                onChange={e => update('color', e.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </label>
-        </div>
+          </div>
+        </label>
 
         <label className="block">
           <span className="block text-sm font-medium text-[#17211D] mb-1.5">Description</span>

@@ -18,15 +18,26 @@ export async function apiFetch(path, { body, headers, ...options } = {}) {
     requestBody = JSON.stringify(body);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    credentials: "include",
-    ...options,
-    headers: {
-      ...(requestBody && !isForm ? { "Content-Type": "application/json" } : {}),
-      ...(headers || {}),
-    },
-    ...(requestBody !== undefined ? { body: requestBody } : {}),
-  });
+  let response;
+
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      credentials: "include",
+      ...options,
+      headers: {
+        ...(requestBody && !isForm ? { "Content-Type": "application/json" } : {}),
+        ...(headers || {}),
+      },
+      ...(requestBody !== undefined ? { body: requestBody } : {}),
+    });
+  } catch (error) {
+    const apiError = new ApiError(
+      `Unable to reach the server${API_URL ? ` at ${API_URL}` : ""}. Make sure the backend is running and try again.`,
+      0
+    );
+    apiError.cause = error;
+    throw apiError;
+  }
 
   const contentType = response.headers.get("content-type") || "";
   const data = contentType.includes("application/json")

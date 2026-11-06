@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AppProvider } from './contexts/AppContext';
 import Navbar from './components/Navbar';
@@ -48,6 +48,13 @@ function AppShell() {
         <Route path="/dashboard" element={<CustomerRoute><DashboardPage /></CustomerRoute>} />
         <Route path="/dashboard/orders" element={<CustomerRoute><DashboardPage /></CustomerRoute>} />
         <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+        <Route path="/admin/products" element={<AdminRoute><AdminPage /></AdminRoute>} />
+        <Route path="/admin/categories" element={<AdminRoute><AdminPage /></AdminRoute>} />
+        <Route path="/admin/inventory" element={<AdminRoute><AdminPage /></AdminRoute>} />
+        <Route path="/admin/orders" element={<AdminRoute><AdminPage /></AdminRoute>} />
+        <Route path="/admin/users" element={<AdminRoute><AdminPage /></AdminRoute>} />
+        <Route path="/admin/reviews" element={<AdminRoute><AdminPage /></AdminRoute>} />
+        <Route path="/admin/*" element={<Navigate to="/admin" replace />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
       </Routes>
