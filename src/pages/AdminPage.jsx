@@ -719,12 +719,10 @@ function CategoriesSection({ categories, loading, onAdd, onEdit, onDelete, onAdd
           {categories.map(category => (
             <div key={category.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col">
               <div className="flex items-start gap-3">
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0"
-                  style={{ backgroundColor: `${category.color || '#831843'}1A`, color: category.color || '#831843' }}
-                >
-                  {category.icon || '📦'}
-                </div>
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0 mt-1.5"
+                  style={{ backgroundColor: category.color || '#831843' }}
+                />
                 <div className="flex-1 min-w-0">
                   <p className="font-display font-bold text-[#17211D] truncate">{category.name}</p>
                   <p className="text-xs text-[#6B756F] truncate">/{category.slug}</p>

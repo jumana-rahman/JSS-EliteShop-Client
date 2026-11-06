@@ -204,9 +204,8 @@ export default function HomePage() {
               >
                 <Link
                   to={`/products?category=${cat.slug || cat.id}`}
-                  className="flex flex-col items-center gap-3 p-5 bg-white rounded-2xl border border-gray-100 hover:border-[#831843]/20 hover:shadow-lg hover:shadow-[#831843]/8 transition-all duration-300 group text-center"
+                  className="flex items-center justify-center p-5 bg-white rounded-2xl border border-gray-100 hover:border-[#831843]/20 hover:shadow-lg hover:shadow-[#831843]/8 transition-all duration-300 group text-center"
                 >
-                  <span className="text-3xl group-hover:scale-110 transition-transform duration-200">{cat.icon || '📦'}</span>
                   <span className="font-display font-semibold text-xs text-[#17211D] leading-tight">{cat.label || cat.name}</span>
                 </Link>
               </motion.div>

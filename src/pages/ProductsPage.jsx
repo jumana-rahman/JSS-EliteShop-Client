@@ -398,7 +398,6 @@ function FilterPanel({
                 onClick={() => onCategoryChange(cat.slug || cat.id)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${isActive ? 'bg-[#831843] text-white font-medium' : 'text-[#6B756F] hover:bg-gray-100'}`}
               >
-                <span>{cat.icon || '📦'}</span>
                 {cat.label || cat.name}
               </button>
             );

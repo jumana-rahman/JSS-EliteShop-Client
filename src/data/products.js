@@ -1,11 +1,11 @@
 export const categories = [
-  { id: 'electronics', label: 'Electronics', icon: '💻', color: '#831843' },
-  { id: 'fashion', label: 'Fashion', icon: '👗', color: '#9F1239' },
-  { id: 'home', label: 'Home & Living', icon: '🏠', color: '#BE185D' },
-  { id: 'kids', label: 'Kids', icon: '🧸', color: '#831843' },
-  { id: 'beauty', label: 'Beauty & Care', icon: '✨', color: '#9F1239' },
-  { id: 'sports', label: 'Sports & Fitness', icon: '🏋️', color: '#BE185D' },
-  { id: 'books', label: 'Books & Stationery', icon: '📚', color: '#831843' },
+  { id: 'electronics', label: 'Electronics', color: '#831843' },
+  { id: 'fashion', label: 'Fashion', color: '#9F1239' },
+  { id: 'home', label: 'Home & Living', color: '#BE185D' },
+  { id: 'kids', label: 'Kids', color: '#831843' },
+  { id: 'beauty', label: 'Beauty & Care', color: '#9F1239' },
+  { id: 'sports', label: 'Sports & Fitness', color: '#BE185D' },
+  { id: 'books', label: 'Books & Stationery', color: '#831843' },
 ];
 
 export const products = [
