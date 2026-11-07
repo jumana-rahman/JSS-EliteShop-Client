@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
+import { sendContactMessage } from '../services/contact';
 
 const faqs = [
   { q: 'How long does delivery take?', a: 'Standard delivery takes 3-5 business days. Express shipping (1-2 days) is available at checkout.' },
@@ -10,20 +11,88 @@ const faqs = [
   { q: 'Can I track my order?', a: 'Yes! Once your order ships, you\'ll receive a tracking link. You can also track orders from My Account → Orders.' },
 ];
 
+const subjects = [
+  'General Inquiry',
+  'Order Issue',
+  'Return & Refund',
+  'Payment Problem',
+  'Product Question',
+  'Other',
+];
+
+const emptyForm = { name: '', email: '', phone: '', subject: '', message: '' };
+
+function validateForm(form) {
+  const errors = {};
+
+  if (form.name.trim().length < 2) errors.name = 'Please enter your full name.';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+    errors.email = 'Please enter a valid email address.';
+  }
+  if (!form.subject) errors.subject = 'Please choose a subject.';
+  if (form.message.trim().length < 20) {
+    errors.message = 'Please write at least 20 characters.';
+  }
+
+  return errors;
+}
+
 export default function ContactPage() {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', subject: '', message: '' });
+  const [form, setForm] = useState(emptyForm);
+  const [errors, setErrors] = useState({});
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
   const { showToast } = useApp();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const updateField = (key, value) => {
+    setForm(previous => ({ ...previous, [key]: value }));
+    setErrors(previous => ({ ...previous, [key]: '' }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    const nextErrors = validateForm(form);
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      showToast('Please fix the highlighted fields.', 'error');
+      return;
+    }
+
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setSent(true);
-    setLoading(false);
-    showToast('Message sent! We\'ll reply within 24 hours.', 'success');
+
+    try {
+      await sendContactMessage({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        subject: form.subject,
+        message: form.message.trim(),
+      });
+
+      setSent(true);
+      setForm(emptyForm);
+      setErrors({});
+      showToast('Your message has been sent! We\'ll reply within 24 hours.', 'success');
+    } catch (error) {
+      const fieldErrors = {};
+      const issues = Array.isArray(error.details)
+        ? error.details
+        : Array.isArray(error.errors)
+          ? error.errors
+          : [];
+
+      issues.forEach(issue => {
+        if (issue.path) fieldErrors[issue.path] = issue.message;
+      });
+
+      setErrors(fieldErrors);
+      showToast(error.message || 'Something went wrong. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,44 +119,83 @@ export default function ContactPage() {
               >
                 <div className="w-16 h-16 bg-[#9F1239]/10 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">✅</div>
                 <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">Message Sent!</h3>
-                <p className="text-[#6B756F] text-sm">We'll get back to you within 24 hours at {form.email}.</p>
-                <button onClick={() => { setSent(false); setForm({ name: '', email: '', phone: '', subject: '', message: '' }); }} className="mt-5 text-sm text-[#831843] font-medium hover:underline">
+                <p className="text-[#6B756F] text-sm">We'll get back to you within 24 hours at the email you provided.</p>
+                <button onClick={() => setSent(false)} className="mt-5 text-sm text-[#831843] font-medium hover:underline">
                   Send another message
                 </button>
               </motion.div>
             ) : (
-              <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 border border-gray-100 space-y-4">
+              <form onSubmit={handleSubmit} noValidate className="bg-white rounded-2xl p-6 border border-gray-100 space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  {[
-                    { key: 'name', label: 'Full Name', placeholder: 'Sarah Johnson' },
-                    { key: 'email', label: 'Email Address', placeholder: 'sarah@example.com', type: 'email' },
-                    { key: 'phone', label: 'Phone (optional)', placeholder: '+1 (555) 000-0000', type: 'tel' },
-                    { key: 'subject', label: 'Subject', placeholder: 'Order question, return, ...' },
-                  ].map(field => (
-                    <div key={field.key} className="col-span-1">
-                      <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">{field.label}</label>
-                      <input
-                        type={field.type || 'text'}
-                        value={form[field.key]}
-                        onChange={e => setForm(prev => ({ ...prev, [field.key]: e.target.value }))}
-                        placeholder={field.placeholder}
-                        required={field.key !== 'phone'}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-[#17211D] outline-none focus:border-[#831843] transition-colors"
-                      />
-                    </div>
-                  ))}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Full Name</label>
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={event => updateField('name', event.target.value)}
+                      placeholder="Sarah Johnson"
+                      className={`w-full px-4 py-3 border rounded-xl text-sm text-[#17211D] outline-none transition-colors ${errors.name ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#831843]'}`}
+                    />
+                    {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Email Address</label>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={event => updateField('email', event.target.value)}
+                      placeholder="sarah@example.com"
+                      className={`w-full px-4 py-3 border rounded-xl text-sm text-[#17211D] outline-none transition-colors ${errors.email ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#831843]'}`}
+                    />
+                    {errors.email && <p className="text-xs text-red-600 mt-1">{errors.email}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Phone (optional)</label>
+                    <input
+                      type="tel"
+                      value={form.phone}
+                      onChange={event => updateField('phone', event.target.value)}
+                      placeholder="+1 (555) 000-0000"
+                      className={`w-full px-4 py-3 border rounded-xl text-sm text-[#17211D] outline-none transition-colors ${errors.phone ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#831843]'}`}
+                    />
+                    {errors.phone && <p className="text-xs text-red-600 mt-1">{errors.phone}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Subject</label>
+                    <select
+                      value={form.subject}
+                      onChange={event => updateField('subject', event.target.value)}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm text-[#17211D] outline-none transition-colors bg-white ${errors.subject ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#831843]'}`}
+                    >
+                      <option value="">Choose a subject</option>
+                      {subjects.map(subject => (
+                        <option key={subject} value={subject}>{subject}</option>
+                      ))}
+                    </select>
+                    {errors.subject && <p className="text-xs text-red-600 mt-1">{errors.subject}</p>}
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Message</label>
                   <textarea
                     value={form.message}
-                    onChange={e => setForm(prev => ({ ...prev, message: e.target.value }))}
+                    onChange={event => updateField('message', event.target.value)}
                     placeholder="Tell us how we can help..."
-                    required
                     rows={5}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-[#17211D] outline-none focus:border-[#831843] transition-colors resize-none"
+                    className={`w-full px-4 py-3 border rounded-xl text-sm text-[#17211D] outline-none transition-colors resize-none ${errors.message ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-[#831843]'}`}
                   />
+                  <div className="flex items-center justify-between gap-3 mt-1">
+                    {errors.message ? (
+                      <p className="text-xs text-red-600">{errors.message}</p>
+                    ) : (
+                      <span />
+                    )}
+                    <p className="text-xs text-[#6B756F]">{form.message.length}/2000</p>
+                  </div>
                 </div>
 
                 <button

@@ -53,7 +53,7 @@ function removeGuestCollection(key) {
 }
 
 export function AppProvider({ children }) {
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending, refetch: refreshSession } = authClient.useSession();
   const user = session?.user ?? null;
   const userId = user?.id ?? null;
 
@@ -414,7 +414,7 @@ export function AppProvider({ children }) {
       cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount,
       wishlist, wishlistCount: wishlist.length, toggleWishlist, moveToCart, isWishlisted,
       user, isLoggedIn: !!user, isAdmin: user?.role === 'admin',
-      authLoading: isPending, authBusy, login, register, logout,
+      authLoading: isPending, authBusy, login, register, logout, refreshSession,
       toast, showToast,
       aiChatOpen, setAiChatOpen,
     }}>

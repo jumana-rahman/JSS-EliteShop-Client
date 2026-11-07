@@ -25,6 +25,16 @@ import {
 } from '../services/adminOrders';
 import { downloadInvoice } from '../services/orders';
 import { listAdminReviews, deleteAdminReview } from '../services/reviews';
+import {
+  listAdminUsers,
+  getAdminUser,
+  updateAdminUserStatus,
+} from '../services/adminUsers';
+import {
+  listAdminMessages,
+  updateAdminMessage,
+  deleteAdminMessage,
+} from '../services/contact';
 
 const ORDER_STATUSES = ['Placed', 'Payment Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded'];
@@ -38,6 +48,7 @@ const adminSections = [
   { id: 'orders', label: 'Orders', icon: '🧾' },
   { id: 'users', label: 'Users', icon: '👥' },
   { id: 'reviews', label: 'Reviews', icon: '⭐' },
+  { id: 'messages', label: 'Messages', icon: '✉️' },
 ];
 
 export default function AdminPage() {
@@ -419,9 +430,9 @@ export default function AdminPage() {
 
             {section === 'reviews' && <ReviewsSection />}
 
-            {section === 'users' && (
-              <PlaceholderSection section="users" />
-            )}
+            {section === 'users' && <UsersSection />}
+
+            {section === 'messages' && <MessagesSection />}
           </motion.div>
         </main>
       </div>
@@ -1605,15 +1616,597 @@ function ReviewsSection() {
   );
 }
 
-function PlaceholderSection({ section }) {
-  const titles = { orders: 'Orders', users: 'Users', reviews: 'Reviews' };
+function UsersSection() {
+  const { showToast } = useApp();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [searchDraft, setSearchDraft] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, pages: 1 });
+  const [version, setVersion] = useState(0);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detail, setDetail] = useState(null);
+  const [statusBusy, setStatusBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      setLoading(true);
+
+      try {
+        const data = await listAdminUsers({
+          search: search || undefined,
+          status: status || undefined,
+          page,
+          limit: 10,
+        });
+
+        if (!active) return;
+        setUsers(data.users || []);
+        setMeta({ total: data.total || 0, pages: data.pages || 1 });
+      } catch (error) {
+        if (active) showToast(error.message || 'Unable to load users.', 'error');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => { active = false; };
+  }, [search, status, page, version]);
+
+  const openUser = async (userId) => {
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetail(null);
+
+    try {
+      const data = await getAdminUser(userId);
+      setDetail(data);
+    } catch (error) {
+      showToast(error.message || 'Unable to load this user.', 'error');
+      setDetailOpen(false);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const toggleStatus = async () => {
+    if (!detail?.user) return;
+
+    setStatusBusy(true);
+
+    try {
+      const data = await updateAdminUserStatus(
+        detail.user.id,
+        !detail.user.isActive
+      );
+
+      setDetail(previous => ({ ...previous, user: data.user }));
+      setUsers(previous =>
+        previous.map(item => (item.id === data.user.id ? data.user : item))
+      );
+      showToast(data.message || 'Account updated.', 'success');
+    } catch (error) {
+      showToast(error.message || 'Unable to update this account.', 'error');
+    } finally {
+      setStatusBusy(false);
+    }
+  };
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+    setPage(1);
+    setSearch(searchDraft.trim());
+  };
 
   return (
     <div>
-      <h1 className="font-display font-bold text-2xl text-[#17211D] mb-6">{titles[section]}</h1>
-      <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-        <div className="text-4xl mb-3">🚧</div>
-        <p className="text-[#6B756F]">Full {section} management is coming in a later phase.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="font-display font-bold text-2xl text-[#17211D]">Users</h1>
+          <p className="text-sm text-[#6B756F] mt-1">
+            {loading ? 'Loading users...' : `${meta.total} registered user${meta.total === 1 ? '' : 's'}`}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <form onSubmit={handleSearch} className="flex items-center gap-2">
+            <input
+              value={searchDraft}
+              onChange={event => setSearchDraft(event.target.value)}
+              placeholder="Search name, email, phone"
+              className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40 w-56"
+            />
+            <button
+              type="submit"
+              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:bg-gray-50 transition-colors"
+            >
+              Search
+            </button>
+          </form>
+          <select
+            value={status}
+            onChange={event => { setStatus(event.target.value); setPage(1); }}
+            className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+          >
+            <option value="">All accounts</option>
+            <option value="active">Active</option>
+            <option value="inactive">Deactivated</option>
+          </select>
+          <button
+            onClick={() => setVersion(value => value + 1)}
+            disabled={loading}
+            className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                {['User', 'Contact', 'Role', 'Orders', 'Spent', 'Joined', 'Status', ''].map(header => (
+                  <th key={header} className="text-left px-5 py-3 text-xs font-semibold text-[#6B756F] uppercase tracking-wide whitespace-nowrap">{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {loading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index}>
+                    <td colSpan={8} className="px-5 py-3">
+                      <div className="skeleton h-12 rounded-lg" />
+                    </td>
+                  </tr>
+                ))
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-16 text-center">
+                    <div className="text-4xl mb-3">👥</div>
+                    <p className="font-display font-semibold text-[#17211D]">
+                      {search || status ? 'No users match your filters' : 'No users yet'}
+                    </p>
+                    <p className="text-sm text-[#6B756F] mt-1">
+                      {search || status ? 'Try a different search or account status.' : 'Registered customers will appear here.'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                users.map(item => (
+                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        {item.image ? (
+                          <img src={item.image} alt={item.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-[#831843]/10 text-[#831843] flex items-center justify-center font-bold shrink-0">
+                            {(item.name || '?').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium text-[#17211D] truncate max-w-44">{item.name || 'Unnamed user'}</p>
+                          <p className="text-xs text-[#6B756F] truncate max-w-44">{item.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 text-[#6B756F] whitespace-nowrap">{item.phone || '—'}</td>
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${item.role === 'admin' ? 'bg-[#831843]/10 text-[#831843]' : 'bg-gray-100 text-gray-600'}`}>
+                        {item.role}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-[#17211D] whitespace-nowrap">{item.orderCount}</td>
+                    <td className="px-5 py-3 text-[#17211D] whitespace-nowrap">{formatMoney(item.totalSpent)}</td>
+                    <td className="px-5 py-3 text-[#6B756F] whitespace-nowrap">{formatShortDate(item.createdAt)}</td>
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full ${item.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${item.isActive ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                        {item.isActive ? 'Active' : 'Deactivated'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3">
+                      <button
+                        onClick={() => openUser(item.id)}
+                        className="px-3 py-1.5 bg-gray-50 text-[#17211D] rounded-lg text-xs font-medium hover:bg-gray-100 transition-colors whitespace-nowrap"
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {meta.pages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-xs text-[#6B756F]">Page {page} of {meta.pages}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(value => Math.max(1, value - 1))}
+              disabled={page <= 1 || loading}
+              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(value => Math.min(meta.pages, value + 1))}
+              disabled={page >= meta.pages || loading}
+              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      <AdminModal
+        open={detailOpen}
+        title={detail?.user?.name || 'User details'}
+        subtitle={detail?.user?.email || ''}
+        onClose={() => { setDetailOpen(false); setDetail(null); }}
+        footer={detail?.user ? (
+          <button
+            onClick={toggleStatus}
+            disabled={statusBusy}
+            className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 ${detail.user.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-[#831843] text-white hover:bg-[#9F1239]'}`}
+          >
+            {statusBusy
+              ? 'Saving...'
+              : detail.user.isActive
+                ? 'Deactivate account'
+                : 'Activate account'}
+          </button>
+        ) : null}
+      >
+        {detailLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="skeleton h-14 rounded-xl" />
+            ))}
+          </div>
+        ) : detail ? (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Orders', value: detail.user.orderCount },
+                { label: 'Spent', value: formatMoney(detail.user.totalSpent) },
+                { label: 'Addresses', value: detail.addressCount },
+                { label: 'Reviews', value: detail.reviewCount },
+              ].map(item => (
+                <div key={item.label} className="bg-[#FAFAF7] rounded-xl p-3 border border-gray-100">
+                  <p className="text-xs text-[#6B756F]">{item.label}</p>
+                  <p className="font-display font-bold text-[#17211D] mt-1">{item.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3 text-sm">
+              {[
+                { label: 'Phone', value: detail.user.phone || '—' },
+                { label: 'Role', value: detail.user.role },
+                { label: 'Joined', value: formatShortDate(detail.user.createdAt) },
+                { label: 'Account status', value: detail.user.isActive ? 'Active' : 'Deactivated' },
+              ].map(item => (
+                <div key={item.label} className="flex items-center justify-between gap-3 px-3 py-2 bg-white rounded-xl border border-gray-100">
+                  <span className="text-[#6B756F]">{item.label}</span>
+                  <span className="font-medium text-[#17211D] capitalize">{item.value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <h3 className="font-display font-bold text-[#17211D] mb-2">Recent Orders</h3>
+              {detail.orders?.length ? (
+                <div className="border border-gray-100 rounded-xl overflow-hidden">
+                  {detail.orders.map(order => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-50 last:border-b-0"
+                    >
+                      <div>
+                        <p className="font-medium text-[#17211D] text-sm">{order.orderNumber}</p>
+                        <p className="text-xs text-[#6B756F]">{formatShortDate(order.createdAt)}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${orderStatusClass(order.status)}`}>{order.status}</span>
+                        <span className="font-semibold text-[#17211D] text-sm">{formatMoney(order.total)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-[#6B756F] bg-[#FAFAF7] rounded-xl px-4 py-6 text-center">
+                  This customer has not placed any orders yet.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </AdminModal>
+    </div>
+  );
+}
+
+function MessagesSection() {
+  const { showToast } = useApp();
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState('unread');
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, unread: 0, pages: 1 });
+  const [version, setVersion] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      setLoading(true);
+
+      try {
+        const data = await listAdminMessages({
+          status: status || undefined,
+          page,
+          limit: 10,
+        });
+
+        if (!active) return;
+        setMessages(data.messages || []);
+        setMeta({ total: data.total || 0, unread: data.unread || 0, pages: data.pages || 1 });
+      } catch (error) {
+        if (active) showToast(error.message || 'Unable to load messages.', 'error');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => { active = false; };
+  }, [status, page, version]);
+
+  const openMessage = async (message) => {
+    setSelected(message);
+
+    if (message.isRead) return;
+
+    try {
+      const data = await updateAdminMessage(message.id, true);
+      const updated = data.contactMessage;
+
+      setSelected(updated);
+      setMessages(previous =>
+        previous.map(item => (item.id === updated.id ? updated : item))
+      );
+      setMeta(previous => ({ ...previous, unread: Math.max(0, previous.unread - 1) }));
+
+      if (status === 'unread') setVersion(value => value + 1);
+    } catch {
+      // Keep the message open even if the read flag fails.
+    }
+  };
+
+  const toggleRead = async () => {
+    if (!selected) return;
+
+    setBusy(true);
+
+    try {
+      const data = await updateAdminMessage(selected.id, !selected.isRead);
+      setSelected(data.contactMessage);
+      setVersion(value => value + 1);
+      showToast(data.message || 'Message updated.', 'success');
+    } catch (error) {
+      showToast(error.message || 'Unable to update this message.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+
+    setDeleting(true);
+
+    try {
+      await deleteAdminMessage(pendingDelete.id);
+      showToast('Message deleted.', 'success');
+      setPendingDelete(null);
+      setSelected(null);
+      setVersion(value => value + 1);
+    } catch (error) {
+      showToast(error.message || 'Unable to delete this message.', 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="font-display font-bold text-2xl text-[#17211D]">Messages</h1>
+          <p className="text-sm text-[#6B756F] mt-1">
+            {loading
+              ? 'Loading messages...'
+              : `${meta.unread} unread of ${meta.total} message${meta.total === 1 ? '' : 's'}`}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { id: 'unread', label: 'Unread' },
+            { id: 'read', label: 'Read' },
+            { id: '', label: 'All' },
+          ].map(tab => (
+            <button
+              key={tab.id || 'all'}
+              onClick={() => { setStatus(tab.id); setPage(1); }}
+              className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${status === tab.id ? 'bg-[#831843] text-white' : 'bg-white border border-gray-200 text-[#17211D] hover:bg-gray-50'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+          <button
+            onClick={() => setVersion(value => value + 1)}
+            disabled={loading}
+            className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        {loading ? (
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="skeleton h-20 rounded-xl" />
+            ))}
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="py-16 text-center">
+            <div className="text-4xl mb-3">✉️</div>
+            <p className="font-display font-semibold text-[#17211D]">
+              {status === 'unread' ? 'No unread messages' : 'No messages yet'}
+            </p>
+            <p className="text-sm text-[#6B756F] mt-1">
+              {status === 'unread' ? 'You are all caught up.' : 'Contact form submissions will appear here.'}
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {messages.map(message => (
+              <button
+                key={message.id}
+                onClick={() => openMessage(message)}
+                className={`w-full text-left px-5 py-4 flex items-start gap-4 hover:bg-gray-50 transition-colors ${message.isRead ? '' : 'bg-[#831843]/[0.03]'}`}
+              >
+                <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${message.isRead ? 'bg-gray-200' : 'bg-[#9F1239]'}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <p className="font-semibold text-[#17211D] text-sm">{message.name}</p>
+                    <span className="text-xs text-[#6B756F]">{message.email}</span>
+                    <span className="text-xs text-[#6B756F]">· {message.subject}</span>
+                  </div>
+                  <p className="text-sm text-[#6B756F] mt-1 line-clamp-2">{message.message}</p>
+                </div>
+                <span className="text-xs text-[#6B756F] whitespace-nowrap shrink-0">{formatShortDate(message.createdAt)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {meta.pages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-xs text-[#6B756F]">Page {page} of {meta.pages}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(value => Math.max(1, value - 1))}
+              disabled={page <= 1 || loading}
+              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(value => Math.min(meta.pages, value + 1))}
+              disabled={page >= meta.pages || loading}
+              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      <AdminModal
+        open={Boolean(selected)}
+        title={selected?.subject || 'Message'}
+        subtitle={selected ? `${selected.name} · ${selected.email}${selected.phone ? ` · ${selected.phone}` : ''}` : ''}
+        onClose={() => setSelected(null)}
+        footer={selected ? (
+          <div className="flex items-center justify-between gap-2 w-full">
+            <button
+              onClick={toggleRead}
+              disabled={busy}
+              className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              {busy ? 'Saving...' : selected.isRead ? 'Mark as unread' : 'Mark as read'}
+            </button>
+            <button
+              onClick={() => setPendingDelete(selected)}
+              className="px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors"
+            >
+              Delete message
+            </button>
+          </div>
+        ) : null}
+      >
+        {selected ? (
+          <div className="space-y-4">
+            <p className="text-xs text-[#6B756F]">
+              Received {formatShortDate(selected.createdAt)} · {selected.isRead ? 'Read' : 'Unread'}
+            </p>
+            <p className="text-sm text-[#17211D] leading-relaxed whitespace-pre-wrap">{selected.message}</p>
+            <a
+              href={`mailto:${selected.email}?subject=${encodeURIComponent(`Re: ${selected.subject}`)}`}
+              className="inline-block px-4 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors"
+            >
+              Reply by email
+            </a>
+          </div>
+        ) : null}
+      </AdminModal>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete message?"
+        message={pendingDelete ? `Delete the message from ${pendingDelete.name}? This cannot be undone.` : ''}
+        confirmLabel="Delete"
+        busy={deleting}
+        onConfirm={handleDelete}
+        onClose={() => setPendingDelete(null)}
+      />
+    </div>
+  );
+}
+
+function AdminModal({ open, title, subtitle, onClose, footer, children }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-black/40 overflow-y-auto" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl w-full max-w-2xl my-8 shadow-xl"
+        onClick={event => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-100">
+          <div className="min-w-0">
+            <h2 className="font-display font-bold text-lg text-[#17211D] truncate">{title}</h2>
+            {subtitle && <p className="text-sm text-[#6B756F] truncate mt-0.5">{subtitle}</p>}
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg text-[#6B756F] hover:bg-gray-100 transition-colors shrink-0"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="px-6 py-5 max-h-[65vh] overflow-y-auto">{children}</div>
+        {footer && <div className="px-6 py-4 border-t border-gray-100 bg-[#FAFAF7] rounded-b-2xl">{footer}</div>}
       </div>
     </div>
   );
