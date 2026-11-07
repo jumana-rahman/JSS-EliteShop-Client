@@ -62,6 +62,7 @@ export function AppProvider({ children }) {
   const [guestMode, setGuestMode] = useState(true);
   const [toast, setToast] = useState(null);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [aiChatSeed, setAiChatSeed] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
 
   const cartRef = useRef(cart);
@@ -417,6 +418,7 @@ export function AppProvider({ children }) {
       authLoading: isPending, authBusy, login, register, logout, refreshSession,
       toast, showToast,
       aiChatOpen, setAiChatOpen,
+      aiChatSeed, setAiChatSeed,
     }}>
       {children}
     </AppContext.Provider>

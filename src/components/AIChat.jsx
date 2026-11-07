@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
+import { aiChat } from '../services/ai';
 
 const quickActions = [
   { icon: '🔍', label: 'Find a product' },
@@ -9,55 +11,105 @@ const quickActions = [
   { icon: '💳', label: 'Payment help' },
 ];
 
-const aiResponses = {
-  default: "I'm here to help you shop smarter! Try asking me about products, outfit ideas, or order status.",
-  headphones: "I'd recommend the **Sony WH-1000XM5** — it's our top-rated headphone with 30-hour battery and industry-leading noise cancellation. Currently 30% off at $279! 🎧",
-  laptop: "The **Apple MacBook Air M3** is excellent for most users — fast, thin, 18-hour battery. Starting at $1,099. For Windows users, I'd suggest checking our Electronics section for alternatives.",
-  outfit: "For a smart casual look, try pairing the **Premium Linen Blazer** in sage green with dark slim-cut trousers and clean white sneakers. Very on-trend for 2026! 🌿",
-  order: "You can track your orders in **My Account → Orders**. Orders typically ship within 1-2 business days, and delivery takes 3-5 days. Need help with a specific order number?",
-  payment: "We accept Visa, Mastercard, and Stripe payments. All transactions are secured with 256-bit SSL encryption. You can also apply coupon codes at checkout! 💳",
-};
+const WELCOME = "Hi! I'm your JSS AI Shopping Assistant. I can help you find products, create outfits, or answer any questions. What can I do for you today? ✨";
 
-function getAIResponse(message) {
-  const lower = message.toLowerCase();
-  if (lower.includes('headphone') || lower.includes('audio')) return aiResponses.headphones;
-  if (lower.includes('laptop') || lower.includes('macbook') || lower.includes('computer')) return aiResponses.laptop;
-  if (lower.includes('outfit') || lower.includes('style') || lower.includes('wear')) return aiResponses.outfit;
-  if (lower.includes('order') || lower.includes('track') || lower.includes('delivery')) return aiResponses.order;
-  if (lower.includes('payment') || lower.includes('pay') || lower.includes('card')) return aiResponses.payment;
-  return aiResponses.default;
+function formatPrice(value) {
+  return `$${Number(value || 0).toFixed(2)}`;
 }
 
 export default function AIChat() {
-  const { aiChatOpen, setAiChatOpen } = useApp();
+  const { aiChatOpen, setAiChatOpen, aiChatSeed, setAiChatSeed } = useApp();
   const [messages, setMessages] = useState([
-    { id: 0, role: 'assistant', text: 'Hi! I\'m your JSS AI Shopping Assistant. I can help you find products, create outfits, or answer any questions. What can I do for you today? ✨' }
+    { id: 0, role: 'assistant', text: WELCOME, products: [] },
   ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
   const messagesEndRef = useRef(null);
-  let nextId = messages.length;
+  const panelRef = useRef(null);
+  const buttonRef = useRef(null);
+  const nextIdRef = useRef(1);
+  const messagesRef = useRef(messages);
+
+  messagesRef.current = messages;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typing]);
 
-  const sendMessage = (text) => {
-    if (!text.trim()) return;
-    const userMsg = { id: nextId++, role: 'user', text };
-    setMessages(prev => [...prev, userMsg]);
+  useEffect(() => {
+    if (!aiChatOpen) return undefined;
+
+    const handleClick = (event) => {
+      if (panelRef.current?.contains(event.target)) return;
+      if (buttonRef.current?.contains(event.target)) return;
+      setAiChatOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [aiChatOpen, setAiChatOpen]);
+
+  const sendMessage = async (text) => {
+    const trimmed = text.trim();
+    if (!trimmed || typing) return;
+
+    const userMessage = {
+      id: nextIdRef.current++,
+      role: 'user',
+      text: trimmed,
+      products: [],
+    };
+
+    const history = [...messagesRef.current, userMessage]
+      .slice(-12)
+      .map(message => ({
+        role: message.role,
+        content: message.text,
+      }));
+
+    setMessages(previous => [...previous, userMessage]);
     setInput('');
     setTyping(true);
 
-    setTimeout(() => {
-      const reply = getAIResponse(text);
-      setMessages(prev => [...prev, { id: nextId++, role: 'assistant', text: reply }]);
+    try {
+      const data = await aiChat(history);
+      setMessages(previous => [
+        ...previous,
+        {
+          id: nextIdRef.current++,
+          role: 'assistant',
+          text: data.reply,
+          products: data.products || [],
+        },
+      ]);
+    } catch (error) {
+      setMessages(previous => [
+        ...previous,
+        {
+          id: nextIdRef.current++,
+          role: 'assistant',
+          text:
+            error.message ||
+            'Something went wrong reaching the AI assistant. Please try again.',
+          products: [],
+          failed: true,
+        },
+      ]);
+    } finally {
       setTyping(false);
-    }, 1200 + Math.random() * 600);
+    }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (!aiChatSeed) return;
+    const seed = aiChatSeed;
+    setAiChatSeed('');
+    sendMessage(seed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiChatSeed]);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
     sendMessage(input);
   };
 
@@ -65,6 +117,7 @@ export default function AIChat() {
     <>
       {/* Floating Button */}
       <motion.button
+        ref={buttonRef}
         onClick={() => setAiChatOpen(!aiChatOpen)}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-br from-[#831843] to-[#9F1239] rounded-2xl shadow-lg shadow-[#831843]/40 flex items-center justify-center text-white hover:shadow-xl hover:shadow-[#831843]/50 transition-shadow"
         whileHover={{ scale: 1.08 }}
@@ -89,6 +142,7 @@ export default function AIChat() {
       <AnimatePresence>
         {aiChatOpen && (
           <motion.div
+            ref={panelRef}
             initial={{ opacity: 0, scale: 0.92, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 20 }}
@@ -116,7 +170,8 @@ export default function AIChat() {
                   <button
                     key={action.label}
                     onClick={() => sendMessage(action.label)}
-                    className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 hover:bg-[#831843]/5 border border-gray-200 hover:border-[#831843]/20 rounded-xl text-xs font-medium text-[#17211D] transition-all duration-200"
+                    disabled={typing}
+                    className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 hover:bg-[#831843]/5 border border-gray-200 hover:border-[#831843]/20 rounded-xl text-xs font-medium text-[#17211D] transition-all duration-200 disabled:opacity-60"
                   >
                     <span>{action.icon}</span>
                     <span>{action.label}</span>
@@ -140,15 +195,46 @@ export default function AIChat() {
                       ✨
                     </div>
                   )}
-                  <div
-                    className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                      msg.role === 'user'
-                        ? 'bg-[#831843] text-white rounded-br-sm'
-                        : 'bg-gray-100 text-[#17211D] rounded-bl-sm'
-                    }`}
-                  >
-                    {msg.text.split('**').map((part, i) =>
-                      i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+                  <div className={`max-w-[80%] min-w-0 ${msg.role === 'user' ? '' : 'space-y-2'}`}>
+                    <div
+                      className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                        msg.role === 'user'
+                          ? 'bg-[#831843] text-white rounded-br-sm'
+                          : 'bg-gray-100 text-[#17211D] rounded-bl-sm'
+                      }`}
+                    >
+                      {msg.text.split('**').map((part, i) =>
+                        i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+                      )}
+                    </div>
+
+                    {msg.products?.length > 0 && (
+                      <div className="space-y-2">
+                        {msg.products.map(product => (
+                          <Link
+                            key={product.id}
+                            to={`/products/${product.id}`}
+                            onClick={() => setAiChatOpen(false)}
+                            className="flex items-center gap-3 p-2 bg-white border border-gray-200 rounded-xl hover:border-[#831843]/30 hover:shadow-sm transition-all"
+                          >
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                              className="w-11 h-11 rounded-lg object-cover bg-gray-50 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-[#17211D] line-clamp-1">{product.name}</p>
+                              <p className="text-xs text-[#6B756F] line-clamp-1">
+                                {product.category}
+                                {product.inStock === false ? ' · Sold out' : ''}
+                              </p>
+                            </div>
+                            <span className="text-xs font-bold text-[#17211D] shrink-0">
+                              {formatPrice(product.price)}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </motion.div>
@@ -180,11 +266,12 @@ export default function AIChat() {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   placeholder="Ask me anything..."
-                  className="flex-1 text-sm bg-transparent outline-none text-[#17211D] placeholder:text-[#6B756F]"
+                  disabled={typing}
+                  className="flex-1 text-sm bg-transparent outline-none text-[#17211D] placeholder:text-[#6B756F] disabled:opacity-60"
                 />
                 <button
                   type="submit"
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || typing}
                   className="w-7 h-7 bg-[#831843] text-white rounded-xl flex items-center justify-center disabled:opacity-40 hover:bg-[#9F1239] transition-all"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

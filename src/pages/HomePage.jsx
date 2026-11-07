@@ -29,7 +29,7 @@ export default function HomePage() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [testimonials, setTestimonials] = useState([]);
-  const { setAiChatOpen, showToast } = useApp();
+  const { setAiChatOpen, showToast, setAiChatSeed } = useApp();
 
   useEffect(() => {
     let active = true;
@@ -78,7 +78,16 @@ export default function HomePage() {
 
   const handleAiSearch = (e) => {
     e.preventDefault();
+    const query = aiQuery.trim();
+
+    if (!query) {
+      setAiChatOpen(true);
+      return;
+    }
+
     setAiChatOpen(true);
+    setAiChatSeed(query);
+    setAiQuery('');
   };
 
   return (
@@ -301,7 +310,7 @@ export default function HomePage() {
               {['Best laptop for students', 'Skincare for dry skin', 'Gift for a 10-year-old', 'Running shoes for beginners'].map(q => (
                 <button
                   key={q}
-                  onClick={() => { setAiQuery(q); setAiChatOpen(true); }}
+                  onClick={() => { setAiQuery(q); setAiChatSeed(q); setAiChatOpen(true); }}
                   className="px-3 py-1.5 bg-white/10 text-white/80 border border-white/20 rounded-full text-xs hover:bg-white/20 transition-colors"
                 >
                   {q}

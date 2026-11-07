@@ -11,6 +11,7 @@ import {
   createReview,
   deleteReview,
 } from '../services/reviews';
+import { completeLook } from '../services/ai';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -31,6 +32,10 @@ export default function ProductDetailPage() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState('');
   const [reviewDeleting, setReviewDeleting] = useState('');
+  const [lookProducts, setLookProducts] = useState([]);
+  const [lookReply, setLookReply] = useState('');
+  const [lookLoading, setLookLoading] = useState(false);
+  const [lookError, setLookError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -42,6 +47,10 @@ export default function ProductDetailPage() {
     setQuantity(1);
     setActiveImage(0);
     setActiveTab('description');
+    setLookProducts([]);
+    setLookReply('');
+    setLookError('');
+    setLookLoading(false);
 
     (async () => {
       try {
@@ -173,6 +182,25 @@ export default function ProductDetailPage() {
       showToast(err.message || 'Unable to delete the review.', 'error');
     } finally {
       setReviewDeleting('');
+    }
+  };
+
+  const handleCompleteLook = async () => {
+    if (!product?.id || lookLoading) return;
+
+    setLookLoading(true);
+    setLookError('');
+    setLookProducts([]);
+    setLookReply('');
+
+    try {
+      const data = await completeLook(product.id);
+      setLookProducts(data.products || []);
+      setLookReply(data.reply || '');
+    } catch (error) {
+      setLookError(error.message || 'Unable to fetch styling suggestions right now.');
+    } finally {
+      setLookLoading(false);
     }
   };
 
@@ -563,6 +591,46 @@ export default function ProductDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Complete My Look */}
+        <section className="mt-16">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#831843] via-[#6B1036] to-[#9F1239] p-8 text-white">
+            <div className="absolute -top-16 -right-10 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
+            <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-white/60 font-semibold">AI Stylist</p>
+                <h2 className="font-display font-bold text-2xl mt-1">Complete My Look ✨</h2>
+                <p className="text-white/70 text-sm mt-1 max-w-lg">
+                  Let AI suggest complementary pieces from our catalog that pair with this product.
+                </p>
+              </div>
+              <button
+                onClick={handleCompleteLook}
+                disabled={lookLoading}
+                className="shrink-0 px-5 py-3 bg-white text-[#831843] rounded-xl text-sm font-bold hover:bg-[#FAFAF7] disabled:opacity-60 transition-colors"
+              >
+                {lookLoading
+                  ? 'Styling...'
+                  : lookProducts.length > 0
+                    ? 'Refresh suggestions'
+                    : 'Style this for me'}
+              </button>
+            </div>
+
+            {lookError && (
+              <p className="relative mt-4 text-sm text-white/80">{lookError}</p>
+            )}
+            {lookReply && !lookError && (
+              <p className="relative mt-4 text-sm text-white/80">{lookReply}</p>
+            )}
+          </div>
+
+          {lookProducts.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+              {lookProducts.map(item => <ProductCard key={item.id} product={item} />)}
+            </div>
+          )}
+        </section>
 
         {/* Related Products */}
         {related.length > 0 && (

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
 import QuickViewModal from '../components/QuickViewModal';
+import { useApp } from '../contexts/AppContext';
 import { listProducts } from '../services/products';
 import { listCategories } from '../services/categories';
 
@@ -18,6 +19,7 @@ const sortOptions = [
 const MAX_PRICE = 2000;
 
 export default function ProductsPage() {
+  const { setAiChatOpen, setAiChatSeed } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const [quickView, setQuickView] = useState(null);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -207,6 +209,18 @@ export default function ProductsPage() {
               placeholder="Search products..."
               className="flex-1 text-sm outline-none text-[#17211D] placeholder:text-[#6B756F] bg-transparent"
             />
+            <button
+              type="button"
+              onClick={() => {
+                const query = searchQuery.trim();
+                setAiChatOpen(true);
+                if (query) setAiChatSeed(query);
+              }}
+              title="Ask the AI assistant"
+              className="flex items-center gap-1 px-2.5 py-1 bg-[#831843]/10 text-[#831843] rounded-lg text-xs font-semibold hover:bg-[#831843]/15 transition-colors shrink-0"
+            >
+              ✨ Ask AI
+            </button>
           </div>
 
           <select
