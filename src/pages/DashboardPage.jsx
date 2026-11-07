@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
 import { listOrders, downloadInvoice } from '../services/orders';
+import { listMyReviews, deleteReview } from '../services/reviews';
+import { StarRating } from '../components/ProductCard';
 import OrderTimeline, { formatShortDate } from '../components/OrderTimeline';
 
 const sidebarItems = [
@@ -39,6 +41,10 @@ export default function DashboardPage() {
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState('');
   const [invoiceBusy, setInvoiceBusy] = useState('');
+  const [myReviews, setMyReviews] = useState([]);
+  const [myReviewsLoading, setMyReviewsLoading] = useState(true);
+  const [myReviewsError, setMyReviewsError] = useState('');
+  const [reviewDeleting, setReviewDeleting] = useState('');
 
   useEffect(() => {
     setActiveSection(routeSection);
@@ -65,6 +71,42 @@ export default function DashboardPage() {
 
     return () => { active = false; };
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return undefined;
+
+    let active = true;
+
+    (async () => {
+      setMyReviewsLoading(true);
+      setMyReviewsError('');
+
+      try {
+        const data = await listMyReviews();
+        if (active) setMyReviews(data.reviews || []);
+      } catch (error) {
+        if (active) setMyReviewsError(error.message || 'Unable to load your reviews.');
+      } finally {
+        if (active) setMyReviewsLoading(false);
+      }
+    })();
+
+    return () => { active = false; };
+  }, [isLoggedIn]);
+
+  const handleDeleteReview = async (review) => {
+    setReviewDeleting(review.id);
+
+    try {
+      await deleteReview(review.id);
+      setMyReviews(previous => previous.filter(item => item.id !== review.id));
+      showToast('Review deleted.', 'success');
+    } catch (error) {
+      showToast(error.message || 'Unable to delete the review.', 'error');
+    } finally {
+      setReviewDeleting('');
+    }
+  };
 
   const goToSection = (id) => {
     setActiveSection(id);
@@ -346,6 +388,79 @@ export default function DashboardPage() {
                 </div>
               )}
 
+              {activeSection === 'reviews' && (
+                <div>
+                  <div className="mb-6">
+                    <h2 className="font-display font-bold text-2xl text-[#17211D]">My Reviews</h2>
+                    <p className="text-sm text-[#6B756F] mt-1">
+                      Reviews you have written for delivered purchases.
+                    </p>
+                  </div>
+
+                  {myReviewsLoading ? (
+                    <div className="space-y-3">
+                      {Array.from({ length: 2 }).map((_, index) => (
+                        <div key={index} className="skeleton h-32 rounded-2xl" />
+                      ))}
+                    </div>
+                  ) : myReviewsError ? (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+                      <div className="text-4xl mb-3">⚠️</div>
+                      <p className="text-[#6B756F]">{myReviewsError}</p>
+                    </div>
+                  ) : myReviews.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                      <div className="text-5xl mb-3">⭐</div>
+                      <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">No reviews yet</h3>
+                      <p className="text-sm text-[#6B756F] mb-5 max-w-md mx-auto">
+                        Once an order is delivered, open the product page to share your experience.
+                      </p>
+                      <Link to="/products" className="inline-block px-5 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors">
+                        Browse Products
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {myReviews.map(review => (
+                        <div key={review.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+                          <div className="flex gap-4">
+                            <Link to={`/products/${review.productId}`} className="shrink-0">
+                              <img
+                                src={review.product?.image}
+                                alt={review.product?.name || 'Product'}
+                                className="w-16 h-16 rounded-xl object-cover bg-gray-50"
+                              />
+                            </Link>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <Link to={`/products/${review.productId}`} className="font-semibold text-sm text-[#17211D] hover:text-[#831843] transition-colors line-clamp-1">
+                                    {review.product?.name || 'Product'}
+                                  </Link>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <StarRating rating={review.rating} />
+                                    <span className="text-xs text-[#6B756F]">{formatShortDate(review.createdAt)}</span>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleDeleteReview(review)}
+                                  disabled={reviewDeleting === review.id}
+                                  className="text-xs font-semibold text-red-500 hover:text-red-600 disabled:opacity-50 transition-colors shrink-0"
+                                >
+                                  {reviewDeleting === review.id ? 'Deleting...' : 'Delete'}
+                                </button>
+                              </div>
+                              {review.title && <p className="font-medium text-sm text-[#17211D] mt-2">{review.title}</p>}
+                              <p className="text-sm text-[#6B756F] mt-1 leading-relaxed">{review.text}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {activeSection === 'profile' && (
                 <div>
                   <h2 className="font-display font-bold text-2xl text-[#17211D] mb-6">My Profile</h2>
@@ -381,7 +496,7 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {['wishlist', 'reviews', 'addresses', 'settings'].includes(activeSection) && (
+              {['wishlist', 'addresses', 'settings'].includes(activeSection) && (
                 <div>
                   <h2 className="font-display font-bold text-2xl text-[#17211D] mb-6 capitalize">{activeSection}</h2>
                   <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">

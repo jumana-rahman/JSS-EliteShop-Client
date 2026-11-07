@@ -24,6 +24,7 @@ import {
   updateAdminOrder,
 } from '../services/adminOrders';
 import { downloadInvoice } from '../services/orders';
+import { listAdminReviews, deleteAdminReview } from '../services/reviews';
 
 const ORDER_STATUSES = ['Placed', 'Payment Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded'];
@@ -416,8 +417,10 @@ export default function AdminPage() {
 
             {section === 'orders' && <OrdersSection />}
 
-            {['users', 'reviews'].includes(section) && (
-              <PlaceholderSection section={section} />
+            {section === 'reviews' && <ReviewsSection />}
+
+            {section === 'users' && (
+              <PlaceholderSection section="users" />
             )}
           </motion.div>
         </main>
@@ -1412,6 +1415,192 @@ function OrdersSection() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ReviewsSection() {
+  const { showToast } = useApp();
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [rating, setRating] = useState('');
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, pages: 1 });
+  const [version, setVersion] = useState(0);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      setLoading(true);
+
+      try {
+        const data = await listAdminReviews({
+          rating: rating || undefined,
+          page,
+          limit: 10,
+        });
+
+        if (!active) return;
+        setReviews(data.reviews || []);
+        setMeta({ total: data.total || 0, pages: data.pages || 1 });
+      } catch (error) {
+        if (active) showToast(error.message || 'Unable to load reviews.', 'error');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => { active = false; };
+  }, [rating, page, version]);
+
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+
+    setDeleting(true);
+
+    try {
+      await deleteAdminReview(pendingDelete.id);
+      showToast('Review deleted.', 'success');
+      setPendingDelete(null);
+      setVersion(value => value + 1);
+    } catch (error) {
+      showToast(error.message || 'Unable to delete the review.', 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="font-display font-bold text-2xl text-[#17211D]">Reviews</h1>
+          <p className="text-sm text-[#6B756F] mt-1">
+            {loading ? 'Loading reviews...' : `${meta.total} review${meta.total === 1 ? '' : 's'} found`}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={rating}
+            onChange={event => { setRating(event.target.value); setPage(1); }}
+            className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+          >
+            <option value="">All ratings</option>
+            {[5, 4, 3, 2, 1].map(star => <option key={star} value={star}>{star} star{star === 1 ? '' : 's'}</option>)}
+          </select>
+          <button
+            onClick={() => setVersion(value => value + 1)}
+            disabled={loading}
+            className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                {['Product', 'Customer', 'Rating', 'Review', 'Date', ''].map(header => (
+                  <th key={header} className="text-left px-5 py-3 text-xs font-semibold text-[#6B756F] uppercase tracking-wide whitespace-nowrap">{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {loading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index}>
+                    <td colSpan={6} className="px-5 py-3">
+                      <div className="skeleton h-12 rounded-lg" />
+                    </td>
+                  </tr>
+                ))
+              ) : reviews.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-16 text-center">
+                    <div className="text-4xl mb-3">⭐</div>
+                    <p className="font-display font-semibold text-[#17211D]">
+                      {rating ? 'No reviews with this rating' : 'No reviews yet'}
+                    </p>
+                    <p className="text-sm text-[#6B756F] mt-1">
+                      {rating ? 'Try a different rating filter.' : 'Customer reviews will appear here after delivery.'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                reviews.map(review => (
+                  <tr key={review.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <img src={review.product?.image} alt={review.product?.name || 'Product'} className="w-10 h-10 rounded-lg object-cover bg-gray-50 shrink-0" />
+                        <p className="font-medium text-[#17211D] line-clamp-2 max-w-44">{review.product?.name || 'Deleted product'}</p>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3">
+                      <p className="text-[#17211D]">{review.user.name}</p>
+                      <p className="text-xs text-[#6B756F]">Verified purchase</p>
+                    </td>
+                    <td className="px-5 py-3 whitespace-nowrap">
+                      <span className="text-[#BE185D] font-semibold">{review.rating}★</span>
+                    </td>
+                    <td className="px-5 py-3">
+                      {review.title && <p className="font-medium text-[#17211D]">{review.title}</p>}
+                      <p className="text-[#6B756F] line-clamp-2 max-w-72">{review.text}</p>
+                    </td>
+                    <td className="px-5 py-3 text-[#6B756F] whitespace-nowrap">{formatShortDate(review.createdAt)}</td>
+                    <td className="px-5 py-3">
+                      <button
+                        onClick={() => setPendingDelete(review)}
+                        className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors whitespace-nowrap"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {meta.pages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-xs text-[#6B756F]">Page {page} of {meta.pages}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(value => Math.max(1, value - 1))}
+              disabled={page <= 1 || loading}
+              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(value => Math.min(meta.pages, value + 1))}
+              disabled={page >= meta.pages || loading}
+              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete review?"
+        message={pendingDelete ? `Delete ${pendingDelete.user?.name || 'this customer'}'s review? The product rating will be recalculated.` : ''}
+        confirmLabel="Delete"
+        busy={deleting}
+        onConfirm={handleDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

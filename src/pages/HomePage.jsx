@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { reviews } from '../data/products';
 import ProductCard, { StarRating } from '../components/ProductCard';
 import QuickViewModal from '../components/QuickViewModal';
 import { useApp } from '../contexts/AppContext';
 import { listProducts } from '../services/products';
 import { listCategories } from '../services/categories';
+import { listFeaturedReviews } from '../services/reviews';
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -14,6 +14,11 @@ const fadeUp = {
   viewport: { once: true, margin: '-60px' },
   transition: { duration: 0.5 },
 };
+
+function formatReviewDate(value) {
+  if (!value) return '';
+  return new Date(value).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
 
 export default function HomePage() {
   const [quickViewProduct, setQuickViewProduct] = useState(null);
@@ -23,6 +28,7 @@ export default function HomePage() {
   const [categories, setCategories] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [testimonials, setTestimonials] = useState([]);
   const { setAiChatOpen, showToast } = useApp();
 
   useEffect(() => {
@@ -52,6 +58,20 @@ export default function HomePage() {
         }
       }
     })();
+
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    listFeaturedReviews(6)
+      .then(data => {
+        if (active) setTestimonials(data.reviews || []);
+      })
+      .catch(() => {
+        if (active) setTestimonials([]);
+      });
 
     return () => { active = false; };
   }, []);
@@ -352,41 +372,59 @@ export default function HomePage() {
       </section>
 
       {/* Reviews */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <motion.div {...fadeUp} className="text-center mb-14">
-          <p className="text-[#9F1239] text-sm font-semibold uppercase tracking-widest mb-2">Testimonials</p>
-          <h2 className="font-display font-bold text-4xl text-[#17211D]">What Our Customers Say</h2>
-        </motion.div>
+      {testimonials.length > 0 && (
+        <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <motion.div {...fadeUp} className="text-center mb-14">
+            <p className="text-[#9F1239] text-sm font-semibold uppercase tracking-widest mb-2">Testimonials</p>
+            <h2 className="font-display font-bold text-4xl text-[#17211D]">What Our Customers Say</h2>
+          </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {reviews.map((review, i) => (
-            <motion.div
-              key={review.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: i * 0.1 }}
-              className="bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition-shadow duration-300"
-            >
-              <div className="flex items-center gap-1 mb-4">
-                <StarRating rating={review.rating} />
-              </div>
-              <p className="text-[#17211D] text-sm leading-relaxed mb-5">"{review.text}"</p>
-              <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                <img
-                  src={review.avatar}
-                  alt={review.name}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-                <div>
-                  <p className="font-display font-semibold text-[#17211D] text-sm">{review.name}</p>
-                  <p className="text-[#6B756F] text-xs">{review.product} · {review.date}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {testimonials.map((review, i) => (
+              <motion.div
+                key={review.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.1 }}
+                className="bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition-shadow duration-300"
+              >
+                <div className="flex items-center gap-1 mb-4">
+                  <StarRating rating={review.rating} />
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
+                <p className="text-[#17211D] text-sm leading-relaxed mb-5">
+                  {review.title ? (
+                    <>
+                      <span className="font-semibold">“{review.title}”</span>
+                      <br />
+                    </>
+                  ) : null}
+                  {review.text}
+                </p>
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                  {review.user?.avatar ? (
+                    <img
+                      src={review.user.avatar}
+                      alt={review.user.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-[#831843]/10 text-[#831843] flex items-center justify-center font-bold">
+                      {(review.user?.name || 'C').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-display font-semibold text-[#17211D] text-sm">{review.user?.name || 'EliteShop Customer'}</p>
+                    <p className="text-[#6B756F] text-xs">
+                      {review.product?.name || 'Verified purchase'} · {formatReviewDate(review.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* CTA Banner */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
