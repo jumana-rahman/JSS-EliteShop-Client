@@ -17,6 +17,17 @@ import ProductFormModal from '../components/admin/ProductFormModal';
 import CategoryFormModal from '../components/admin/CategoryFormModal';
 import SubcategoryFormModal from '../components/admin/SubcategoryFormModal';
 import ConfirmDialog from '../components/admin/ConfirmDialog';
+import OrderTimeline, { formatShortDate } from '../components/OrderTimeline';
+import {
+  listAdminOrders,
+  getAdminOrder,
+  updateAdminOrder,
+} from '../services/adminOrders';
+import { downloadInvoice } from '../services/orders';
+
+const ORDER_STATUSES = ['Placed', 'Payment Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded'];
+const DELIVERY_STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
 const adminSections = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -356,6 +367,7 @@ export default function AdminPage() {
                 lowStock={lowStock}
                 onRefresh={() => setStatsVersion(version => version + 1)}
                 onManageInventory={() => goToSection('inventory')}
+                onManageOrders={() => goToSection('orders')}
               />
             )}
 
@@ -402,7 +414,9 @@ export default function AdminPage() {
               />
             )}
 
-            {['orders', 'users', 'reviews'].includes(section) && (
+            {section === 'orders' && <OrdersSection />}
+
+            {['users', 'reviews'].includes(section) && (
               <PlaceholderSection section={section} />
             )}
           </motion.div>
@@ -445,7 +459,7 @@ export default function AdminPage() {
   );
 }
 
-function DashboardSection({ stats, loading, lowStock, onRefresh, onManageInventory }) {
+function DashboardSection({ stats, loading, lowStock, onRefresh, onManageInventory, onManageOrders }) {
   const primaryCards = [
     { label: 'Total Products', value: stats?.totalProducts, icon: '🛍️', hint: 'In catalog' },
     { label: 'Categories', value: stats?.totalCategories, icon: '🗂️', hint: `${stats?.totalSubcategories ?? 0} subcategories` },
@@ -538,14 +552,19 @@ function DashboardSection({ stats, loading, lowStock, onRefresh, onManageInvento
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 p-6">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#831843]/8 flex items-center justify-center text-lg">🧾</div>
-          <div>
-            <h3 className="font-display font-bold text-[#17211D]">Orders & Reviews</h3>
-            <p className="text-sm text-[#6B756F] mt-1">
-              Order and review management will be connected once checkout and customer reviews are implemented.
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#831843]/8 flex items-center justify-center text-lg">🧾</div>
+            <div>
+              <h3 className="font-display font-bold text-[#17211D]">Orders</h3>
+              <p className="text-sm text-[#6B756F] mt-1">
+                Review orders, update delivery status, add notes and download invoices.
+              </p>
+            </div>
           </div>
+          <button onClick={onManageOrders} className="text-sm font-semibold text-[#831843] hover:underline self-start sm:self-center shrink-0">
+            Manage orders →
+          </button>
         </div>
       </div>
     </div>
@@ -908,6 +927,490 @@ function InventorySection({ products, loading, drafts, changesCount, filter, sav
         <p className="text-xs text-[#6B756F] mt-3">
           Edit the new stock values and click Save All Changes. Products with stock below 10 are marked as low stock.
         </p>
+      )}
+    </div>
+  );
+}
+
+function orderStatusClass(status) {
+  switch (status) {
+    case 'Delivered':
+      return 'bg-[#9F1239]/10 text-[#9F1239]';
+    case 'Shipped':
+      return 'bg-blue-50 text-blue-600';
+    case 'Processing':
+      return 'bg-orange-50 text-orange-700';
+    case 'Payment Confirmed':
+      return 'bg-[#BE185D]/10 text-[#BE185D]';
+    case 'Cancelled':
+      return 'bg-red-50 text-red-600';
+    default:
+      return 'bg-[#831843]/8 text-[#831843]';
+  }
+}
+
+function OrdersSection() {
+  const { showToast } = useApp();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [meta, setMeta] = useState({ total: 0, pages: 1 });
+  const [page, setPage] = useState(1);
+  const [version, setVersion] = useState(0);
+  const [filters, setFilters] = useState({
+    status: '',
+    paymentStatus: '',
+    deliveryStatus: '',
+    search: '',
+    dateFrom: '',
+    dateTo: '',
+  });
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [form, setForm] = useState({ status: '', paymentStatus: '', deliveryStatus: '', note: '' });
+  const [saving, setSaving] = useState(false);
+  const [invoiceBusy, setInvoiceBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+
+      try {
+        const data = await listAdminOrders({ ...filters, page, limit: 10 });
+        if (!active) return;
+        setOrders(data.orders || []);
+        setMeta({ total: data.total || 0, pages: data.pages || 1 });
+      } catch (error) {
+        if (active) showToast(error.message || 'Unable to load orders.', 'error');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, filters.search ? 300 : 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [filters, page, version]);
+
+  const updateFilter = (key, value) => {
+    setFilters(previous => ({ ...previous, [key]: value }));
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setFilters({ status: '', paymentStatus: '', deliveryStatus: '', search: '', dateFrom: '', dateTo: '' });
+    setPage(1);
+  };
+
+  const openOrder = async (order) => {
+    setDetailLoading(true);
+    setDetail(order);
+    setForm({
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      deliveryStatus: order.deliveryStatus,
+      note: '',
+    });
+
+    try {
+      const data = await getAdminOrder(order.id);
+      setDetail(data.order);
+      setForm({
+        status: data.order.status,
+        paymentStatus: data.order.paymentStatus,
+        deliveryStatus: data.order.deliveryStatus,
+        note: '',
+      });
+    } catch (error) {
+      showToast(error.message || 'Unable to load the order.', 'error');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeDetail = () => {
+    setDetail(null);
+    setSaving(false);
+  };
+
+  const saveOrder = async () => {
+    if (!detail) return;
+
+    const payload = {};
+
+    if (form.status !== detail.status) payload.status = form.status;
+    if (form.paymentStatus !== detail.paymentStatus) payload.paymentStatus = form.paymentStatus;
+    if (form.deliveryStatus !== detail.deliveryStatus) payload.deliveryStatus = form.deliveryStatus;
+    if (form.note.trim()) payload.note = form.note.trim();
+
+    if (!payload.status && !payload.paymentStatus && !payload.deliveryStatus) {
+      showToast('Change the status, payment or delivery first.', 'info');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const data = await updateAdminOrder(detail.id, payload);
+      setDetail(data.order);
+      setForm({
+        status: data.order.status,
+        paymentStatus: data.order.paymentStatus,
+        deliveryStatus: data.order.deliveryStatus,
+        note: '',
+      });
+      setVersion(value => value + 1);
+      showToast('Order updated.', 'success');
+    } catch (error) {
+      showToast(error.message || 'Unable to update the order.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const downloadOrderInvoice = async () => {
+    if (!detail) return;
+
+    setInvoiceBusy(true);
+
+    try {
+      await downloadInvoice(detail.id || detail.orderNumber);
+    } catch (error) {
+      showToast(error.message || 'Could not download the invoice.', 'error');
+    } finally {
+      setInvoiceBusy(false);
+    }
+  };
+
+  const hasFilters = Object.values(filters).some(Boolean);
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="font-display font-bold text-2xl text-[#17211D]">Orders</h1>
+          <p className="text-sm text-[#6B756F] mt-1">
+            {loading ? 'Loading orders...' : `${meta.total} order${meta.total === 1 ? '' : 's'} found`}
+          </p>
+        </div>
+        <button
+          onClick={() => setVersion(value => value + 1)}
+          disabled={loading}
+          className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-50 transition-colors self-start"
+        >
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-5">
+        <div className="grid sm:grid-cols-2 xl:grid-cols-6 gap-3">
+          <input
+            value={filters.search}
+            onChange={event => updateFilter('search', event.target.value)}
+            placeholder="Search order or customer..."
+            className="xl:col-span-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+          />
+          <select
+            value={filters.status}
+            onChange={event => updateFilter('status', event.target.value)}
+            className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+          >
+            <option value="">All statuses</option>
+            {ORDER_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
+          </select>
+          <select
+            value={filters.paymentStatus}
+            onChange={event => updateFilter('paymentStatus', event.target.value)}
+            className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+          >
+            <option value="">All payments</option>
+            {PAYMENT_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
+          </select>
+          <select
+            value={filters.deliveryStatus}
+            onChange={event => updateFilter('deliveryStatus', event.target.value)}
+            className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+          >
+            <option value="">All deliveries</option>
+            {DELIVERY_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
+          </select>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={event => updateFilter('dateFrom', event.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+              title="From date"
+            />
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={event => updateFilter('dateTo', event.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+              title="To date"
+            />
+          </div>
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-[#6B756F] hover:bg-gray-100 transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                {['Order', 'Customer', 'Date', 'Total', 'Status', 'Payment', 'Delivery', ''].map(header => (
+                  <th key={header} className="text-left px-5 py-3 text-xs font-semibold text-[#6B756F] uppercase tracking-wide whitespace-nowrap">{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {loading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index}>
+                    <td colSpan={8} className="px-5 py-3">
+                      <div className="skeleton h-12 rounded-lg" />
+                    </td>
+                  </tr>
+                ))
+              ) : orders.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-16 text-center">
+                    <div className="text-4xl mb-3">🧾</div>
+                    <p className="font-display font-semibold text-[#17211D]">
+                      {hasFilters ? 'No orders match these filters' : 'No orders yet'}
+                    </p>
+                    <p className="text-sm text-[#6B756F] mt-1">
+                      {hasFilters ? 'Try clearing a filter or searching for a different order.' : 'Orders placed at checkout will appear here.'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                orders.map(order => (
+                  <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-5 py-3">
+                      <button onClick={() => openOrder(order)} className="font-semibold text-[#831843] hover:underline">
+                        {order.orderNumber}
+                      </button>
+                      <p className="text-xs text-[#6B756F]">{order.items.length} item{order.items.length === 1 ? '' : 's'}</p>
+                    </td>
+                    <td className="px-5 py-3">
+                      <p className="text-[#17211D]">{order.customer?.name || order.address?.name || '—'}</p>
+                      <p className="text-xs text-[#6B756F]">{order.customer?.email || order.address?.phone || ''}</p>
+                    </td>
+                    <td className="px-5 py-3 text-[#6B756F] whitespace-nowrap">{formatShortDate(order.createdAt)}</td>
+                    <td className="px-5 py-3 font-bold text-[#17211D] whitespace-nowrap">{formatMoney(order.total)}</td>
+                    <td className="px-5 py-3">
+                      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${orderStatusClass(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 capitalize text-[#6B756F]">{order.paymentStatus}</td>
+                    <td className="px-5 py-3 text-[#6B756F] whitespace-nowrap">{order.deliveryStatus}</td>
+                    <td className="px-5 py-3">
+                      <button onClick={() => openOrder(order)} className="px-3 py-1.5 bg-[#831843]/8 text-[#831843] rounded-lg text-xs font-medium hover:bg-[#831843]/15 transition-colors whitespace-nowrap">
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {meta.pages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-xs text-[#6B756F]">Page {page} of {meta.pages}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(value => Math.max(1, value - 1))}
+              disabled={page <= 1 || loading}
+              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(value => Math.min(meta.pages, value + 1))}
+              disabled={page >= meta.pages || loading}
+              className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-[#17211D] hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/60 overflow-y-auto" onClick={closeDetail}>
+          <div
+            className="bg-white rounded-2xl w-full max-w-3xl my-4 overflow-hidden"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-gray-100">
+              <div>
+                <p className="font-display font-bold text-lg text-[#17211D]">{detail.orderNumber}</p>
+                <p className="text-xs text-[#6B756F]">
+                  {formatShortDate(detail.createdAt)} · {detail.items.length} item{detail.items.length === 1 ? '' : 's'} · {formatMoney(detail.total)}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={downloadOrderInvoice}
+                  disabled={invoiceBusy}
+                  className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-[#17211D] hover:border-[#831843]/30 disabled:opacity-50 transition-colors"
+                >
+                  {invoiceBusy ? 'Preparing...' : 'Invoice'}
+                </button>
+                <button onClick={closeDetail} className="p-2 rounded-lg text-[#6B756F] hover:bg-gray-100 transition-colors" aria-label="Close">
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+              {detailLoading && (
+                <div className="skeleton h-20 rounded-xl" />
+              )}
+
+              <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1">Customer</p>
+                  <p className="font-medium text-[#17211D]">{detail.customer?.name || detail.address?.name || '—'}</p>
+                  {detail.customer?.email && <p className="text-[#6B756F]">{detail.customer.email}</p>}
+                  {detail.customer?.phone && <p className="text-[#6B756F]">{detail.customer.phone}</p>}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1">Delivering to</p>
+                  <p className="font-medium text-[#17211D]">{detail.address?.name} · {detail.address?.phone}</p>
+                  <p className="text-[#6B756F]">
+                    {detail.address?.addressLine}, {detail.address?.city} {detail.address?.postalCode}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-5">
+                <p className="text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-3">Tracking</p>
+                <OrderTimeline order={detail} variant="horizontal" />
+              </div>
+
+              <div className="border-t border-gray-100 pt-5">
+                <p className="text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-3">Items</p>
+                <div className="space-y-2">
+                  {detail.items.map((item, index) => (
+                    <div key={`${item.productId}-${index}`} className="flex items-center gap-3">
+                      <img src={item.image} alt={item.productName} className="w-10 h-10 object-cover rounded-lg bg-gray-50" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#17211D] line-clamp-1">{item.productName}</p>
+                        <p className="text-xs text-[#6B756F]">Qty {item.quantity} × {formatMoney(item.unitPrice)}</p>
+                      </div>
+                      <p className="text-sm font-semibold text-[#17211D]">{formatMoney(item.totalPrice)}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-100 space-y-1 text-sm">
+                  <div className="flex justify-between text-[#6B756F]"><span>Subtotal</span><span>{formatMoney(detail.subtotal)}</span></div>
+                  <div className="flex justify-between text-[#6B756F]"><span>Shipping</span><span>{Number(detail.shipping) === 0 ? 'Free' : formatMoney(detail.shipping)}</span></div>
+                  {Number(detail.discount) > 0 && (
+                    <div className="flex justify-between text-[#9F1239]"><span>Discount</span><span>-{formatMoney(detail.discount)}</span></div>
+                  )}
+                  <div className="flex justify-between font-bold text-[#17211D] pt-1"><span>Total</span><span>{formatMoney(detail.total)}</span></div>
+                </div>
+              </div>
+
+              {detail.notes && (
+                <div className="border-t border-gray-100 pt-5">
+                  <p className="text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1">Customer note</p>
+                  <p className="text-sm text-[#17211D] bg-[#FAFAF7] rounded-xl p-3">{detail.notes}</p>
+                </div>
+              )}
+
+              <div className="border-t border-gray-100 pt-5">
+                <p className="text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-3">Status history</p>
+                <div className="space-y-2">
+                  {(detail.statusHistory || []).slice().reverse().map((entry, index) => (
+                    <div key={`${entry.status}-${index}`} className="flex items-start gap-3 text-sm">
+                      <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${entry.status === 'Cancelled' ? 'bg-red-500' : 'bg-[#831843]'}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-[#17211D]">{entry.status}</p>
+                        {entry.note && <p className="text-xs text-[#6B756F]">{entry.note}</p>}
+                      </div>
+                      <span className="text-xs text-[#6B756F] whitespace-nowrap">{formatShortDate(entry.changedAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-5">
+                <p className="text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-3">Update order</p>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <label className="block">
+                    <span className="block text-xs text-[#6B756F] mb-1">Status</span>
+                    <select
+                      value={form.status}
+                      onChange={event => setForm(previous => ({ ...previous, status: event.target.value }))}
+                      className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+                    >
+                      {ORDER_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="block text-xs text-[#6B756F] mb-1">Payment</span>
+                    <select
+                      value={form.paymentStatus}
+                      onChange={event => setForm(previous => ({ ...previous, paymentStatus: event.target.value }))}
+                      className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40 capitalize"
+                    >
+                      {PAYMENT_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="block text-xs text-[#6B756F] mb-1">Delivery</span>
+                    <select
+                      value={form.deliveryStatus}
+                      onChange={event => setForm(previous => ({ ...previous, deliveryStatus: event.target.value }))}
+                      className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+                    >
+                      {DELIVERY_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <input
+                  value={form.note}
+                  onChange={event => setForm(previous => ({ ...previous, note: event.target.value }))}
+                  placeholder="Optional note for the status history..."
+                  className="w-full mt-3 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+                />
+                <div className="flex justify-end gap-2 mt-4">
+                  <button
+                    onClick={closeDetail}
+                    className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:bg-gray-50 transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={saveOrder}
+                    disabled={saving || detailLoading}
+                    className="px-4 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] disabled:opacity-50 transition-colors"
+                  >
+                    {saving ? 'Saving...' : 'Save changes'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { getOrder } from '../services/orders';
-
-const statusOrder = ['Placed', 'Processing', 'Shipped', 'Delivered'];
+import { getOrder, downloadInvoice } from '../services/orders';
+import { useApp } from '../contexts/AppContext';
+import OrderTimeline from '../components/OrderTimeline';
 
 function formatDate(value) {
   if (!value) return '';
@@ -14,39 +14,14 @@ function formatDate(value) {
   });
 }
 
-function buildTimeline(order) {
-  if (!order) return [];
-  if (order.status === 'Cancelled') {
-    return [
-      { label: 'Order Placed', done: true, date: formatDate(order.createdAt) },
-      { label: 'Cancelled', done: true, date: formatDate(order.updatedAt) },
-    ];
-  }
-
-  const currentIndex = Math.max(0, statusOrder.indexOf(order.status));
-  return statusOrder.map((label, index) => ({
-    label,
-    done: index <= currentIndex,
-    active: index === currentIndex,
-    date:
-      index === 0
-        ? formatDate(order.createdAt)
-        : index <= currentIndex
-          ? 'Completed'
-          : index === statusOrder.length - 1
-            ? `Est. ${formatDate(
-                new Date(new Date(order.createdAt).getTime() + 5 * 86400000)
-              )}`
-            : '',
-  }));
-}
-
 export default function OrderConfirmationPage() {
   const { id } = useParams();
   const location = useLocation();
+  const { showToast } = useApp();
   const [order, setOrder] = useState(location.state?.order || null);
   const [loading, setLoading] = useState(!location.state?.order);
   const [error, setError] = useState('');
+  const [invoiceBusy, setInvoiceBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -64,6 +39,18 @@ export default function OrderConfirmationPage() {
 
     return () => { active = false; };
   }, [id]);
+
+  const handleInvoice = async () => {
+    setInvoiceBusy(true);
+
+    try {
+      await downloadInvoice(order.id || order.orderNumber);
+    } catch (error) {
+      showToast(error.message || 'Could not download the invoice.', 'error');
+    } finally {
+      setInvoiceBusy(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -92,7 +79,6 @@ export default function OrderConfirmationPage() {
     );
   }
 
-  const timeline = buildTimeline(order);
   const paymentLabel = order.paymentStatus === 'paid' ? 'Paid' : 'Cash on Delivery';
 
   return (
@@ -183,33 +169,17 @@ export default function OrderConfirmationPage() {
 
           <div className="bg-white rounded-2xl p-6 border border-gray-100 mb-8 text-left">
             <h3 className="font-display font-bold text-[#17211D] mb-5">Order Tracking</h3>
-            <div className="relative">
-              {timeline.map((step, i) => (
-                <div key={step.label} className={`flex gap-4 ${i < timeline.length - 1 ? 'mb-6' : ''}`}>
-                  <div className="flex flex-col items-center">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${step.done ? 'bg-[#831843]' : 'bg-gray-100'}`}>
-                      {step.done ? (
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        <div className="w-2.5 h-2.5 bg-gray-300 rounded-full" />
-                      )}
-                    </div>
-                    {i < timeline.length - 1 && (
-                      <div className={`w-0.5 flex-1 mt-1 ${step.done && timeline[i + 1].done ? 'bg-[#831843]' : 'bg-gray-200'}`} style={{ minHeight: 24 }} />
-                    )}
-                  </div>
-                  <div className="pt-1">
-                    <p className={`font-medium text-sm ${step.done ? 'text-[#17211D]' : 'text-[#6B756F]'}`}>{step.label}</p>
-                    {step.date && <p className="text-xs text-[#6B756F] mt-0.5">{step.date}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <OrderTimeline order={order} />
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={handleInvoice}
+              disabled={invoiceBusy}
+              className="px-6 py-3 bg-white border border-gray-200 text-[#17211D] rounded-2xl font-semibold hover:border-[#831843]/30 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            >
+              {invoiceBusy ? 'Preparing...' : 'Download Invoice'}
+            </button>
             <Link
               to="/dashboard/orders"
               className="px-6 py-3 bg-[#831843] text-white rounded-2xl font-semibold hover:bg-[#9F1239] transition-colors"
