@@ -2,24 +2,60 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
+import { computePricing, FREE_SHIPPING_THRESHOLD } from '../lib/pricing';
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, clearCart, cartTotal, showToast } = useApp();
+  const {
+    cart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    cartTotal,
+    appliedCoupon,
+    applyCoupon,
+    removeCoupon,
+    isLoggedIn,
+    showToast,
+  } = useApp();
   const [coupon, setCoupon] = useState('');
-  const [couponApplied, setCouponApplied] = useState(false);
+  const [couponBusy, setCouponBusy] = useState(false);
   const navigate = useNavigate();
 
-  const shipping = cartTotal > 50 ? 0 : 9.99;
-  const discount = couponApplied ? cartTotal * 0.1 : 0;
-  const total = cartTotal - discount + shipping;
+  const pricing = computePricing(cartTotal, appliedCoupon);
+  const { shipping, discount, total } = pricing;
+  const hasStockIssue = cart.some(
+    (item) =>
+      !item.product.inStock ||
+      item.quantity > Number(item.product.stockCount ?? 0)
+  );
 
-  const applyCoupon = () => {
-    if (coupon.toUpperCase() === 'ELITE10') {
-      setCouponApplied(true);
-      showToast('Coupon applied! 10% discount.', 'success');
-    } else {
-      showToast('Invalid coupon code.', 'error');
+  const handleApplyCoupon = async (event) => {
+    event.preventDefault();
+
+    const code = coupon.trim();
+    if (!code || couponBusy) return;
+
+    if (!isLoggedIn) {
+      showToast('Please sign in to use a coupon.', 'error');
+      return;
     }
+
+    setCouponBusy(true);
+
+    try {
+      await applyCoupon(code);
+      setCoupon('');
+      showToast('Coupon applied!', 'success');
+    } catch (error) {
+      showToast(error.message || 'Invalid coupon code.', 'error');
+    } finally {
+      setCouponBusy(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    removeCoupon();
+    showToast('Coupon removed.', 'info');
   };
 
   if (cart.length === 0) {
@@ -106,7 +142,8 @@ export default function CartPage() {
                         <span className="w-6 text-center text-sm font-semibold text-[#17211D]">{item.quantity}</span>
                         <button
                           onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                          className="w-8 h-8 flex items-center justify-center text-[#17211D] hover:bg-gray-100 rounded-r-xl transition-colors"
+                          disabled={item.quantity >= Number(item.product.stockCount ?? 0)}
+                          className="w-8 h-8 flex items-center justify-center text-[#17211D] hover:bg-gray-100 rounded-r-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           +
                         </button>
@@ -129,25 +166,48 @@ export default function CartPage() {
             {/* Coupon */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100">
               <h3 className="font-display font-semibold text-[#17211D] mb-3">Coupon Code</h3>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={coupon}
-                  onChange={e => setCoupon(e.target.value)}
-                  placeholder="ELITE10"
-                  disabled={couponApplied}
-                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-[#17211D] outline-none focus:border-[#831843] transition-colors disabled:bg-gray-50 disabled:text-[#6B756F]"
-                />
-                <button
-                  onClick={applyCoupon}
-                  disabled={couponApplied || !coupon}
-                  className="px-4 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {couponApplied ? '✓' : 'Apply'}
-                </button>
-              </div>
-              {couponApplied && <p className="text-xs text-[#9F1239] mt-2 font-medium">✓ 10% discount applied</p>}
-              <p className="text-xs text-[#6B756F] mt-2">Try code: ELITE10</p>
+
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-[#9F1239]/5 border border-[#9F1239]/20 rounded-xl">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-[#831843]">{appliedCoupon.code}</p>
+                    <p className="text-xs text-[#6B756F] truncate">
+                      {appliedCoupon.description ||
+                        (appliedCoupon.discountType === 'percentage'
+                          ? `${appliedCoupon.discountValue}% off`
+                          : `$${appliedCoupon.discountValue} off`)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRemoveCoupon}
+                    className="shrink-0 text-xs font-medium text-[#6B756F] hover:text-red-500 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={coupon}
+                    onChange={e => setCoupon(e.target.value)}
+                    placeholder="ELITE10"
+                    disabled={couponBusy}
+                    className="flex-1 min-w-0 px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-[#17211D] outline-none focus:border-[#831843] transition-colors disabled:bg-gray-50 disabled:text-[#6B756F]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={couponBusy || !coupon.trim()}
+                    className="px-4 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {couponBusy ? '...' : 'Apply'}
+                  </button>
+                </form>
+              )}
+
+              <p className="text-xs text-[#6B756F] mt-2">
+                {isLoggedIn ? 'Try code: ELITE10' : 'Sign in to apply coupon codes.'}
+              </p>
             </div>
 
             {/* Order Summary */}
@@ -156,11 +216,11 @@ export default function CartPage() {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between text-[#6B756F]">
                   <span>Subtotal</span>
-                  <span className="text-[#17211D] font-medium">${cartTotal.toFixed(2)}</span>
+                  <span className="text-[#17211D] font-medium">${pricing.subtotal.toFixed(2)}</span>
                 </div>
-                {couponApplied && (
+                {discount > 0 && (
                   <div className="flex justify-between text-[#9F1239]">
-                    <span>Discount (10%)</span>
+                    <span>Discount{appliedCoupon ? ` (${appliedCoupon.code})` : ''}</span>
                     <span>-${discount.toFixed(2)}</span>
                   </div>
                 )}
@@ -171,7 +231,9 @@ export default function CartPage() {
                   </span>
                 </div>
                 {shipping > 0 && (
-                  <p className="text-xs text-[#9F1239]">Add ${(50 - cartTotal).toFixed(2)} more for free shipping</p>
+                  <p className="text-xs text-[#9F1239]">
+                    Add ${(FREE_SHIPPING_THRESHOLD - pricing.subtotal).toFixed(2)} more for free shipping
+                  </p>
                 )}
                 <div className="pt-3 border-t border-gray-100 flex justify-between">
                   <span className="font-display font-bold text-[#17211D]">Total</span>
@@ -179,9 +241,16 @@ export default function CartPage() {
                 </div>
               </div>
 
+              {hasStockIssue && (
+                <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                  Some items are out of stock or exceed available quantity. Adjust your cart to continue.
+                </p>
+              )}
+
               <button
                 onClick={() => navigate('/checkout')}
-                className="w-full mt-5 py-4 bg-[#831843] text-white rounded-2xl font-display font-bold hover:bg-[#9F1239] transition-all duration-200 active:scale-[0.98]"
+                disabled={hasStockIssue}
+                className="w-full mt-5 py-4 bg-[#831843] text-white rounded-2xl font-display font-bold hover:bg-[#9F1239] transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Proceed to Checkout →
               </button>

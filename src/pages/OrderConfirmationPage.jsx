@@ -160,6 +160,12 @@ export default function OrderConfirmationPage() {
                 <span>Shipping</span>
                 <span>{Number(order.shipping) === 0 ? 'Free' : `$${Number(order.shipping).toFixed(2)}`}</span>
               </div>
+              {Number(order.discount) > 0 && (
+                <div className="flex justify-between text-[#9F1239]">
+                  <span>Discount{order.couponCode ? ` (${order.couponCode})` : ''}</span>
+                  <span>-${Number(order.discount).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-[#17211D] pt-1">
                 <span>Total</span>
                 <span>${Number(order.total).toFixed(2)}</span>

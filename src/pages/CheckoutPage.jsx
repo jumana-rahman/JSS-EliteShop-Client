@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
 import { listAddresses } from '../services/addresses';
 import { createOrder } from '../services/orders';
+import { computePricing } from '../lib/pricing';
 
 const steps = ['address', 'summary', 'payment'];
 const stepLabels = ['Address', 'Order Summary', 'Payment'];
@@ -17,7 +18,17 @@ const emptyForm = {
 };
 
 export default function CheckoutPage() {
-  const { cart, cartTotal, clearCart, showToast, user } = useApp();
+  const {
+    cart,
+    cartTotal,
+    clearCart,
+    showToast,
+    user,
+    appliedCoupon,
+    applyCoupon,
+    removeCoupon,
+    isLoggedIn,
+  } = useApp();
   const [currentStep, setCurrentStep] = useState('address');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -26,11 +37,14 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState('new');
   const [form, setForm] = useState(emptyForm);
   const [saveAddress, setSaveAddress] = useState(true);
+  const [coupon, setCoupon] = useState('');
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponError, setCouponError] = useState('');
   const navigate = useNavigate();
 
   const stepIndex = steps.indexOf(currentStep);
-  const shipping = cartTotal >= 50 ? 0 : 9.99;
-  const total = cartTotal + shipping;
+  const pricing = computePricing(cartTotal, appliedCoupon);
+  const { shipping, discount, total } = pricing;
 
   useEffect(() => {
     let active = true;
@@ -91,6 +105,37 @@ export default function CheckoutPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleApplyCoupon = async (event) => {
+    event.preventDefault();
+
+    const code = coupon.trim();
+    if (!code || couponBusy) return;
+
+    if (!isLoggedIn) {
+      setCouponError('Please sign in to use a coupon.');
+      return;
+    }
+
+    setCouponBusy(true);
+    setCouponError('');
+
+    try {
+      await applyCoupon(code);
+      setCoupon('');
+      showToast('Coupon applied!', 'success');
+    } catch (err) {
+      setCouponError(err.message || 'Invalid coupon code.');
+    } finally {
+      setCouponBusy(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    removeCoupon();
+    setCouponError('');
+    showToast('Coupon removed.', 'info');
+  };
+
   const handlePlaceOrder = async () => {
     setError('');
     setLoading(true);
@@ -106,8 +151,9 @@ export default function CheckoutPage() {
               postalCode: form.postalCode.trim(),
             },
             saveAddress,
+            couponCode: appliedCoupon?.code || '',
           }
-        : { addressId: selectedAddressId };
+        : { addressId: selectedAddressId, couponCode: appliedCoupon?.code || '' };
 
       const data = await createOrder(payload);
       await clearCart();
@@ -363,6 +409,60 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
+                    <div className="border-t border-gray-100 pt-4 mb-6">
+                      <h3 className="font-semibold text-sm text-[#17211D] mb-3">Coupon Code</h3>
+
+                      {appliedCoupon ? (
+                        <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-[#9F1239]/5 border border-[#9F1239]/20 rounded-xl">
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-[#831843]">{appliedCoupon.code}</p>
+                            <p className="text-xs text-[#6B756F] truncate">
+                              {appliedCoupon.description ||
+                                (appliedCoupon.discountType === 'percentage'
+                                  ? `${appliedCoupon.discountValue}% off`
+                                  : `$${appliedCoupon.discountValue} off`)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRemoveCoupon}
+                            className="shrink-0 text-xs font-medium text-[#6B756F] hover:text-red-500 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                          <input
+                            type="text"
+                            value={coupon}
+                            onChange={(e) => {
+                              setCoupon(e.target.value);
+                              setCouponError('');
+                            }}
+                            placeholder="Enter coupon code"
+                            disabled={couponBusy}
+                            className="flex-1 min-w-0 px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-[#17211D] outline-none focus:border-[#831843] transition-colors disabled:bg-gray-50 disabled:text-[#6B756F]"
+                          />
+                          <button
+                            type="submit"
+                            disabled={couponBusy || !coupon.trim()}
+                            className="px-4 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {couponBusy ? '...' : 'Apply'}
+                          </button>
+                        </form>
+                      )}
+
+                      {couponError && (
+                        <p className="text-xs text-red-600 mt-2">{couponError}</p>
+                      )}
+
+                      {!isLoggedIn && !appliedCoupon && (
+                        <p className="text-xs text-[#6B756F] mt-2">Sign in to apply coupon codes.</p>
+                      )}
+                    </div>
+
                     <div className="flex gap-3">
                       <button
                         onClick={() => setCurrentStep('address')}
@@ -443,6 +543,12 @@ export default function CheckoutPage() {
                   <span>Subtotal ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
                   <span className="text-[#17211D]">${cartTotal.toFixed(2)}</span>
                 </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-[#9F1239]">
+                    <span>Discount{appliedCoupon ? ` (${appliedCoupon.code})` : ''}</span>
+                    <span>-${discount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-[#6B756F]">
                   <span>Shipping</span>
                   <span className={shipping === 0 ? 'text-[#9F1239] font-medium' : 'text-[#17211D]'}>

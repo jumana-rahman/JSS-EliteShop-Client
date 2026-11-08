@@ -14,11 +14,38 @@ import {
   removeWishlistItem,
   mergeWishlist,
 } from '../services/wishlist';
+import { validateCoupon as validateCouponCode } from '../services/coupons';
 
 const AppContext = createContext(null);
 
 const GUEST_CART_KEY = 'jss_cart';
 const GUEST_WISHLIST_KEY = 'jss_wishlist';
+const COUPON_STORAGE_KEY = 'jss_coupon';
+
+function readStoredCoupon() {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(COUPON_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredCoupon(coupon) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    if (coupon) {
+      window.sessionStorage.setItem(COUPON_STORAGE_KEY, JSON.stringify(coupon));
+    } else {
+      window.sessionStorage.removeItem(COUPON_STORAGE_KEY);
+    }
+  } catch {
+    return;
+  }
+}
 
 function readGuestCollection(key) {
   if (typeof window === 'undefined') return [];
@@ -63,6 +90,7 @@ export function AppProvider({ children }) {
   const [toast, setToast] = useState(null);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [aiChatSeed, setAiChatSeed] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(() => readStoredCoupon());
   const [authBusy, setAuthBusy] = useState(false);
 
   const cartRef = useRef(cart);
@@ -249,6 +277,18 @@ export function AppProvider({ children }) {
     );
   };
 
+  const applyCoupon = async (code) => {
+    const data = await validateCouponCode(code);
+    setAppliedCoupon(data.coupon);
+    writeStoredCoupon(data.coupon);
+    return data;
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    writeStoredCoupon(null);
+  };
+
   const clearCart = async () => {
     if (userId) {
       try {
@@ -257,10 +297,12 @@ export function AppProvider({ children }) {
       } catch (error) {
         showToast(error.message || 'Unable to clear your cart.', 'error');
       }
-      return;
+    } else {
+      setCart([]);
     }
 
-    setCart([]);
+    setAppliedCoupon(null);
+    writeStoredCoupon(null);
   };
 
   const cartTotal = cart.reduce(
@@ -413,6 +455,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount,
+      appliedCoupon, applyCoupon, removeCoupon,
       wishlist, wishlistCount: wishlist.length, toggleWishlist, moveToCart, isWishlisted,
       user, isLoggedIn: !!user, isAdmin: user?.role === 'admin',
       authLoading: isPending, authBusy, login, register, logout, refreshSession,
