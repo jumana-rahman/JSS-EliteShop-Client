@@ -1,6 +1,25 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useApp } from '../contexts/AppContext';
 
 export default function Footer() {
+  const { showToast } = useApp();
+  const [email, setEmail] = useState('');
+
+  const handleSubscribe = (event) => {
+    event.preventDefault();
+
+    const value = email.trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      showToast('Enter a valid email address.', 'error');
+      return;
+    }
+
+    showToast('Thanks for subscribing! Watch your inbox for offers.', 'success');
+    setEmail('');
+  };
+
   return (
     <footer className="bg-[#17211D] text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -91,18 +110,29 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
+            <Link
+              to="/admin"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#BE185D] hover:text-[#E14E8B] transition-colors mb-6"
+            >
+              🔐 Admin Login
+            </Link>
             <div>
               <p className="text-sm font-medium mb-2">Stay updated</p>
-              <div className="flex gap-2">
+              <form onSubmit={handleSubscribe} className="flex gap-2">
                 <input
                   type="email"
+                  value={email}
+                  onChange={event => setEmail(event.target.value)}
                   placeholder="Your email"
                   className="flex-1 px-3 py-2 bg-white/10 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/40 outline-none focus:border-[#BE185D] transition-colors"
                 />
-                <button className="px-3 py-2 bg-[#BE185D] text-white rounded-lg text-sm font-semibold hover:bg-[#E14E8B] transition-colors">
+                <button
+                  type="submit"
+                  className="px-3 py-2 bg-[#BE185D] text-white rounded-lg text-sm font-semibold hover:bg-[#E14E8B] transition-colors"
+                >
                   Go
                 </button>
-              </div>
+              </form>
             </div>
           </div>
         </div>
@@ -112,7 +142,7 @@ export default function Footer() {
             © 2026 JSS EliteShop. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
-            {['Visa', 'Mastercard', 'Stripe', 'PayPal'].map(method => (
+            {['Cash on Delivery', 'Secure Checkout', 'Easy Returns'].map(method => (
               <span key={method} className="px-2.5 py-1 bg-white/10 rounded text-xs text-white/50 font-medium">
                 {method}
               </span>

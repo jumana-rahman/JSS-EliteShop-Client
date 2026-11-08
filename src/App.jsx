@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Toast from './components/Toast';
 import AIChat from './components/AIChat';
+import ScrollTopButton from './components/ScrollTopButton';
 import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
 import ProductDetailPage from './pages/ProductDetailPage';
@@ -52,6 +53,7 @@ function AppShell() {
         <Route path="/admin/categories" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/admin/inventory" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/admin/orders" element={<AdminRoute><AdminPage /></AdminRoute>} />
+        <Route path="/admin/coupons" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/admin/reviews" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/admin/*" element={<Navigate to="/admin" replace />} />
@@ -59,6 +61,7 @@ function AppShell() {
         <Route path="/contact" element={<ContactPage />} />
       </Routes>
       {showFooter && <Footer />}
+      {showFooter && <ScrollTopButton />}
       <AIChat />
       <Toast />
     </>

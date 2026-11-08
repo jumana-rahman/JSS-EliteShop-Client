@@ -1444,6 +1444,8 @@ function ReviewsSection() {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState('');
+  const [productId, setProductId] = useState('');
+  const [productOptions, setProductOptions] = useState([]);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, pages: 1 });
   const [version, setVersion] = useState(0);
@@ -1453,11 +1455,24 @@ function ReviewsSection() {
   useEffect(() => {
     let active = true;
 
+    listProducts({ limit: 100, sort: 'newest' })
+      .then(data => {
+        if (active) setProductOptions(data.products || []);
+      })
+      .catch(() => {});
+
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
     (async () => {
       setLoading(true);
 
       try {
         const data = await listAdminReviews({
+          productId: productId || undefined,
           rating: rating || undefined,
           page,
           limit: 10,
@@ -1474,7 +1489,7 @@ function ReviewsSection() {
     })();
 
     return () => { active = false; };
-  }, [rating, page, version]);
+  }, [rating, productId, page, version]);
 
   const handleDelete = async () => {
     if (!pendingDelete) return;
@@ -1504,6 +1519,16 @@ function ReviewsSection() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={productId}
+            onChange={event => { setProductId(event.target.value); setPage(1); }}
+            className="px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-[#17211D] outline-none focus:border-[#831843]/40 max-w-52"
+          >
+            <option value="">All products</option>
+            {productOptions.map(product => (
+              <option key={product.id} value={product.id}>{product.name}</option>
+            ))}
+          </select>
           <select
             value={rating}
             onChange={event => { setRating(event.target.value); setPage(1); }}
