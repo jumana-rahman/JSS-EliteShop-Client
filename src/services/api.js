@@ -1,4 +1,14 @@
-const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
+const configuredApiUrl = import.meta.env.VITE_API_URL;
+
+// Fall back to the local backend only while developing. Production builds must
+// always get the API origin from VITE_API_URL at build time.
+const API_URL = (
+  configuredApiUrl || (import.meta.env.DEV ? "http://localhost:5000" : "")
+).replace(/\/$/, "");
+
+if (!configuredApiUrl && !import.meta.env.DEV) {
+  console.error("Missing VITE_API_URL. Set it in the Vercel project settings.");
+}
 
 export class ApiError extends Error {
   constructor(message, status, details) {
