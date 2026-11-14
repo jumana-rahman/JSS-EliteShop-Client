@@ -197,8 +197,8 @@ export default function ProductsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-wrap gap-3 mb-6">
-          <div className="flex-1 min-w-64 flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <div className="flex-1 basis-full sm:basis-0 min-w-0 flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 h-11">
             <svg className="w-4 h-4 text-[#6B756F] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -207,7 +207,7 @@ export default function ProductsPage() {
               value={searchQuery}
               onChange={e => setParam('search', e.target.value)}
               placeholder="Search products..."
-              className="flex-1 text-sm outline-none text-[#17211D] placeholder:text-[#6B756F] bg-transparent"
+              className="flex-1 min-w-0 text-sm outline-none text-[#17211D] placeholder:text-[#6B756F] bg-transparent"
             />
             <button
               type="button"
@@ -223,30 +223,34 @@ export default function ProductsPage() {
             </button>
           </div>
 
-          <select
-            value={sort}
-            onChange={e => setParam('sort', e.target.value)}
-            className="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-[#17211D] outline-none cursor-pointer"
-          >
-            {sortOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+          <div className="flex basis-full sm:basis-auto items-center gap-3 sm:shrink-0">
+            <select
+              value={sort}
+              onChange={e => setParam('sort', e.target.value)}
+              className="h-11 flex-1 sm:flex-none bg-white border border-gray-200 rounded-xl px-4 text-sm text-[#17211D] outline-none cursor-pointer"
+            >
+              {sortOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
 
-          <button
-            onClick={() => setFilterOpen(!filterOpen)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-[#17211D] hover:border-[#831843]/30 transition-colors lg:hidden"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
-            </svg>
-            Filters
-          </button>
+            <button
+              onClick={() => setFilterOpen(!filterOpen)}
+              className="flex h-11 flex-1 sm:flex-none items-center justify-center gap-2 px-4 bg-white border border-gray-200 rounded-xl text-sm text-[#17211D] hover:border-[#831843]/30 transition-colors lg:hidden"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+              </svg>
+              Filters
+            </button>
+          </div>
         </div>
 
-        <div className="flex gap-8">
+        <div className="flex items-start gap-8">
           <aside className="hidden lg:block w-64 shrink-0">
-            <FilterPanel {...filterProps} />
+            <div className="sticky top-24 bg-white border border-gray-100 rounded-2xl p-5 max-h-[calc(100vh-7rem)] overflow-y-auto">
+              <FilterPanel {...filterProps} />
+            </div>
           </aside>
 
           <AnimatePresence>
@@ -263,12 +267,12 @@ export default function ProductsPage() {
                   animate={{ x: 0 }}
                   exit={{ x: '-100%' }}
                   transition={{ duration: 0.3 }}
-                  className="absolute left-0 top-0 bottom-0 w-80 bg-white overflow-y-auto p-6"
+                  className="absolute inset-y-0 left-0 w-full max-w-xs sm:max-w-sm bg-white overflow-y-auto overscroll-contain p-6"
                   onClick={e => e.stopPropagation()}
                 >
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="font-display font-bold text-lg text-[#17211D]">Filters</h3>
-                    <button onClick={() => setFilterOpen(false)} className="p-2 rounded-lg hover:bg-gray-100">
+                    <button onClick={() => setFilterOpen(false)} aria-label="Close filters" className="p-2 rounded-lg hover:bg-gray-100">
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                       </svg>
@@ -478,16 +482,16 @@ function FilterPanel({
             value={minPrice || ''}
             onChange={e => onMinPrice(e.target.value === '' ? 0 : Number(e.target.value))}
             placeholder="Min"
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+            className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
           />
-          <span className="text-xs text-[#6B756F]">to</span>
+          <span className="text-xs text-[#6B756F] shrink-0">to</span>
           <input
             type="number"
             min="0"
             value={maxPrice >= MAX_PRICE ? '' : maxPrice}
             onChange={e => onMaxPrice(e.target.value === '' ? MAX_PRICE : Number(e.target.value))}
             placeholder="Max"
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
+            className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm text-[#17211D] outline-none focus:border-[#831843]/40"
           />
         </div>
         <input
