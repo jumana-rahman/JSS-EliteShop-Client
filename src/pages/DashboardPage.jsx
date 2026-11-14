@@ -433,9 +433,17 @@ export default function DashboardPage() {
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               <div className="p-5 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-[#831843]/10 rounded-xl flex items-center justify-center text-xl font-bold text-[#831843]">
-                    {user?.name?.charAt(0) || '?'}
-                  </div>
+                  {user?.image ? (
+                    <img
+                      src={user.image}
+                      alt={user?.name || 'Profile'}
+                      className="w-12 h-12 rounded-xl object-cover bg-gray-50"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-[#831843]/10 rounded-xl flex items-center justify-center text-xl font-bold text-[#831843]">
+                      {user?.name?.charAt(0) || '?'}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="font-display font-bold text-[#17211D] text-sm truncate">{user?.name}</p>
                     <p className="text-xs text-[#6B756F] truncate">{user?.email}</p>

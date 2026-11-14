@@ -123,8 +123,16 @@ export default function Navbar() {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/10 transition-all duration-200"
                   >
-                    <div className="w-7 h-7 rounded-full bg-[#BE185D] flex items-center justify-center text-white font-bold text-xs">
-                      {user?.name?.charAt(0)}
+                    <div className="w-7 h-7 rounded-full bg-[#BE185D] flex items-center justify-center text-white font-bold text-xs overflow-hidden shrink-0">
+                      {user?.image ? (
+                        <img
+                          src={user.image}
+                          alt={user?.name || 'Profile'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        user?.name?.charAt(0)
+                      )}
                     </div>
                     <span className="text-white/90 text-sm font-medium hidden lg:block">{user?.name?.split(' ')[0]}</span>
                   </button>

@@ -1588,8 +1588,23 @@ function ReviewsSection() {
                       </div>
                     </td>
                     <td className="px-5 py-3">
-                      <p className="text-[#17211D]">{review.user.name}</p>
-                      <p className="text-xs text-[#6B756F]">Verified purchase</p>
+                      <div className="flex items-center gap-3">
+                        {review.user.avatar ? (
+                          <img
+                            src={review.user.avatar}
+                            alt={review.user.name}
+                            className="w-9 h-9 rounded-full object-cover bg-gray-50 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-[#831843]/10 text-[#831843] flex items-center justify-center font-bold shrink-0">
+                            {(review.user.name || '?').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-[#17211D]">{review.user.name}</p>
+                          <p className="text-xs text-[#6B756F]">Verified purchase</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-5 py-3 whitespace-nowrap">
                       <span className="text-[#BE185D] font-semibold">{review.rating}★</span>
@@ -1910,6 +1925,24 @@ function UsersSection() {
           </div>
         ) : detail ? (
           <div className="space-y-5">
+            <div className="flex items-center gap-4">
+              {detail.user.image ? (
+                <img
+                  src={detail.user.image}
+                  alt={detail.user.name || 'Profile'}
+                  className="w-16 h-16 rounded-2xl object-cover bg-gray-50 shrink-0"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-[#831843]/10 text-[#831843] flex items-center justify-center text-2xl font-bold shrink-0">
+                  {(detail.user.name || '?').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-display font-bold text-lg text-[#17211D] truncate">{detail.user.name || 'Unnamed user'}</p>
+                <p className="text-sm text-[#6B756F] truncate">{detail.user.email}</p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'Orders', value: detail.user.orderCount },
