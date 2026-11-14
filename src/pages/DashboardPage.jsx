@@ -13,6 +13,16 @@ import {
 } from '../services/addresses';
 import { StarRating } from '../components/ProductCard';
 import OrderTimeline, { formatShortDate } from '../components/OrderTimeline';
+import { uploadAvatar } from '../services/uploads';
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read that image.'));
+    reader.readAsDataURL(file);
+  });
+}
 
 const sidebarItems = [
   { id: 'overview', label: 'Overview', icon: '🏠' },
@@ -63,6 +73,8 @@ export default function DashboardPage() {
   const [addressDeleting, setAddressDeleting] = useState('');
   const [profileForm, setProfileForm] = useState({ name: '', phone: '', image: '' });
   const [profileSaving, setProfileSaving] = useState(false);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -145,6 +157,8 @@ export default function DashboardPage() {
       phone: user.phone || '',
       image: user.image || '',
     });
+    setAvatarFile(null);
+    setAvatarPreview('');
   }, [user?.id, user?.name, user?.phone, user?.image]);
 
   const loadAddresses = async () => {
@@ -282,14 +296,24 @@ export default function DashboardPage() {
     setProfileSaving(true);
 
     try {
+      let image = profileForm.image.trim();
+
+      if (avatarFile) {
+        const uploaded = await uploadAvatar(avatarPreview);
+        image = uploaded.url || '';
+      }
+
       const { error } = await authClient.updateUser({
         name: profileForm.name.trim(),
         phone: profileForm.phone.trim(),
-        image: profileForm.image.trim(),
+        image,
       });
 
       if (error) throw new Error(error.message || 'Unable to update your profile.');
 
+      setProfileForm(previous => ({ ...previous, image }));
+      setAvatarFile(null);
+      setAvatarPreview('');
       await refreshSession?.();
       showToast('Profile updated.', 'success');
     } catch (error) {
@@ -297,6 +321,37 @@ export default function DashboardPage() {
     } finally {
       setProfileSaving(false);
     }
+  };
+
+  const handleAvatarChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please choose an image file.', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image must be 5MB or smaller.', 'error');
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setAvatarFile(file);
+      setAvatarPreview(dataUrl);
+    } catch (error) {
+      showToast(error.message || 'Could not read that image.', 'error');
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview('');
+    setProfileForm(previous => ({ ...previous, image: '' }));
   };
 
   const handlePasswordSubmit = async (event) => {
@@ -345,6 +400,8 @@ export default function DashboardPage() {
       setInvoiceBusy('');
     }
   };
+
+  const profileImage = avatarPreview || profileForm.image;
 
   if (!isLoggedIn) {
     return (
@@ -690,9 +747,9 @@ export default function DashboardPage() {
 
                   <form onSubmit={handleProfileSubmit} className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5 max-w-2xl">
                     <div className="flex items-center gap-5">
-                      {profileForm.image ? (
+                      {profileImage ? (
                         <img
-                          src={profileForm.image}
+                          src={profileImage}
                           alt={profileForm.name || 'Profile'}
                           className="w-16 h-16 rounded-2xl object-cover bg-gray-50"
                           onError={event => { event.currentTarget.style.display = 'none'; }}
@@ -743,13 +800,30 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <div className="sm:col-span-2">
-                        <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Profile Photo URL</label>
-                        <input
-                          value={profileForm.image}
-                          onChange={event => setProfileForm(previous => ({ ...previous, image: event.target.value }))}
-                          placeholder="https://..."
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-[#17211D] outline-none focus:border-[#831843] transition-colors"
-                        />
+                        <label className="block text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-1.5">Profile Photo</label>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <label className={`inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-gray-200 text-sm font-medium text-[#17211D] hover:bg-gray-50 cursor-pointer transition-colors ${profileSaving ? 'opacity-50 pointer-events-none' : ''}`}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleAvatarChange}
+                              disabled={profileSaving}
+                              className="hidden"
+                            />
+                            📷 {avatarFile ? 'Choose another photo' : 'Choose photo'}
+                          </label>
+                          {profileImage && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveAvatar}
+                              disabled={profileSaving}
+                              className="px-4 py-3 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                            >
+                              Remove photo
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#6B756F] mt-1">JPG, PNG, or GIF. Maximum 5MB.</p>
                       </div>
                     </div>
 
