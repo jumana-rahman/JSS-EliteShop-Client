@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, ArrowRight, Search, Sparkles, Star, TriangleAlert } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import QuickViewModal from '../components/QuickViewModal';
 import { useApp } from '../contexts/AppContext';
@@ -219,7 +220,7 @@ export default function ProductsPage() {
               title="Ask the AI assistant"
               className="flex items-center gap-1 px-2.5 py-1 bg-[#831843]/10 text-[#831843] rounded-lg text-xs font-semibold hover:bg-[#831843]/15 transition-colors shrink-0"
             >
-              ✨ Ask AI
+              <Sparkles className="w-3.5 h-3.5" /> Ask AI
             </button>
           </div>
 
@@ -287,7 +288,7 @@ export default function ProductsPage() {
           <div className="flex-1 min-w-0">
             {error ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
-                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-3xl mb-4">⚠️</div>
+                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-4"><TriangleAlert className="w-8 h-8 text-red-500" /></div>
                 <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">Could not load products</h3>
                 <p className="text-[#6B756F] text-sm mb-6">{error}</p>
                 <button
@@ -313,7 +314,7 @@ export default function ProductsPage() {
               </div>
             ) : products.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center text-3xl mb-4">🔍</div>
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4"><Search className="w-8 h-8 text-gray-400" /></div>
                 <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">No products found</h3>
                 <p className="text-[#6B756F] text-sm mb-6">Try adjusting your filters or search query</p>
                 <button onClick={resetAll} className="px-6 py-3 bg-[#831843] text-white rounded-xl font-semibold text-sm hover:bg-[#9F1239] transition-colors">
@@ -333,9 +334,9 @@ export default function ProductsPage() {
                     <button
                       onClick={() => goToPage(meta.page - 1)}
                       disabled={meta.page <= 1}
-                      className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:border-[#831843]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="flex items-center gap-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:border-[#831843]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      ← Previous
+                      <ArrowLeft className="w-4 h-4" /> Previous
                     </button>
                     <span className="text-sm text-[#6B756F]">
                       Page {meta.page} of {meta.totalPages}
@@ -343,9 +344,9 @@ export default function ProductsPage() {
                     <button
                       onClick={() => goToPage(meta.page + 1)}
                       disabled={meta.page >= meta.totalPages}
-                      className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:border-[#831843]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="flex items-center gap-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#17211D] hover:border-[#831843]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      Next →
+                      Next <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
                 )}
@@ -518,7 +519,9 @@ function FilterPanel({
               onClick={() => onRating(r)}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${minRating === r ? 'bg-[#831843] text-white font-medium' : 'text-[#6B756F] hover:bg-gray-100'}`}
             >
-              {r === 0 ? 'All Ratings' : `${r}★ & above`}
+              {r === 0 ? 'All Ratings' : (
+                <span className="inline-flex items-center gap-0.5">{r}<Star className="w-3 h-3 fill-current" /> & above</span>
+              )}
             </button>
           ))}
         </div>

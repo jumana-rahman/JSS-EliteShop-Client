@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { StarRating } from './ProductCard';
 import { Link } from 'react-router-dom';
@@ -167,16 +168,16 @@ export default function QuickViewModal({ product, onClose }) {
               <Link
                 to={`/products/${product.id}`}
                 onClick={onClose}
-                className="mt-3 text-center text-sm text-[#831843] font-medium hover:underline"
+                className="mt-3 flex items-center justify-center gap-1 text-center text-sm text-[#831843] font-medium hover:underline"
               >
-                View full details →
+                View full details <ArrowRight className="w-4 h-4" />
               </Link>
 
               {/* Complete My Look */}
               <div className="mt-5 pt-5 border-t border-gray-100">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-[#831843] mb-0.5">✨ Complete My Look</p>
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-[#831843] mb-0.5"><Sparkles className="w-4 h-4" /> Complete My Look</p>
                     <p className="text-xs text-[#6B756F]">Let AI suggest matching pieces.</p>
                   </div>
                   <button
@@ -212,7 +213,7 @@ export default function QuickViewModal({ product, onClose }) {
                           <p className="text-xs font-medium text-[#17211D] truncate">{item.name}</p>
                           <p className="text-xs text-[#6B756F]">${item.price}</p>
                         </div>
-                        <span className="text-[#831843] text-xs">→</span>
+                        <ArrowRight className="w-3.5 h-3.5 text-[#831843]" />
                       </Link>
                     ))}
                   </div>

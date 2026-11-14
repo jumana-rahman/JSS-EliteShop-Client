@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { ArrowRight, CircleCheck, Clock, Mail, MapPin, Phone } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { sendContactMessage } from '../services/contact';
 
@@ -7,8 +8,8 @@ const faqs = [
   { q: 'How long does delivery take?', a: 'Standard delivery takes 3-5 business days. Express shipping (1-2 days) is available at checkout.' },
   { q: 'What is your return policy?', a: 'We offer 30-day hassle-free returns on all items. Simply initiate a return from your dashboard.' },
   { q: 'Are all products authentic?', a: 'Absolutely. All products are sourced directly from brands or authorized distributors. We have a zero-tolerance policy for counterfeits.' },
-  { q: 'How does the AI shopping assistant work?', a: 'Our AI learns from your browsing patterns and preferences to suggest products you\'ll love. You can also chat with it directly using the ✨ button.' },
-  { q: 'Can I track my order?', a: 'Yes! Once your order ships, you\'ll receive a tracking link. You can also track orders from My Account → Orders.' },
+  { q: 'How does the AI shopping assistant work?', a: 'Our AI learns from your browsing patterns and preferences to suggest products you\'ll love. You can also chat with it directly using the AI assistant button.' },
+  { q: 'Can I track my order?', a: 'Yes! Once your order ships, you\'ll receive a tracking link. You can also track orders from My Account > Orders.' },
 ];
 
 const subjects = [
@@ -117,7 +118,7 @@ export default function ContactPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="bg-white rounded-2xl p-8 border border-gray-100 text-center"
               >
-                <div className="w-16 h-16 bg-[#9F1239]/10 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">✅</div>
+                <div className="w-16 h-16 bg-[#9F1239]/10 rounded-full flex items-center justify-center mx-auto mb-4"><CircleCheck className="w-8 h-8 text-[#9F1239]" /></div>
                 <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">Message Sent!</h3>
                 <p className="text-[#6B756F] text-sm">We'll get back to you within 24 hours at the email you provided.</p>
                 <button onClick={() => setSent(false)} className="mt-5 text-sm text-[#831843] font-medium hover:underline">
@@ -205,7 +206,9 @@ export default function ContactPage() {
                 >
                   {loading ? (
                     <><div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />Sending...</>
-                  ) : 'Send Message →'}
+                  ) : (
+                    <>Send Message <ArrowRight className="w-4 h-4" /></>
+                  )}
                 </button>
               </form>
             )}
@@ -218,13 +221,13 @@ export default function ContactPage() {
               <h2 className="font-display font-bold text-2xl text-[#17211D] mb-6">Contact Information</h2>
               <div className="space-y-4">
                 {[
-                  { icon: '📧', label: 'Email', value: 'support@jsseliteshop.com' },
-                  { icon: '📞', label: 'Phone', value: '+1 (800) JSS-SHOP' },
-                  { icon: '📍', label: 'Address', value: '123 Elite Avenue, San Francisco, CA 94105' },
-                  { icon: '🕒', label: 'Hours', value: 'Mon–Fri 9am–7pm PST · Weekends 10am–5pm' },
+                  { icon: Mail, label: 'Email', value: 'support@jsseliteshop.com' },
+                  { icon: Phone, label: 'Phone', value: '+1 (800) JSS-SHOP' },
+                  { icon: MapPin, label: 'Address', value: '123 Elite Avenue, San Francisco, CA 94105' },
+                  { icon: Clock, label: 'Hours', value: 'Mon–Fri 9am–7pm PST · Weekends 10am–5pm' },
                 ].map(item => (
                   <div key={item.label} className="flex items-start gap-4 p-4 bg-white rounded-xl border border-gray-100">
-                    <span className="text-xl">{item.icon}</span>
+                    <item.icon className="w-5 h-5 text-[#831843] shrink-0" />
                     <div>
                       <p className="text-xs font-semibold text-[#6B756F] uppercase tracking-wide mb-0.5">{item.label}</p>
                       <p className="text-sm text-[#17211D] font-medium">{item.value}</p>

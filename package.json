@@ -16,6 +16,7 @@
     "@stripe/stripe-js": "^10.2.1",
     "better-auth": "^1.7.14",
     "framer-motion": "^13.4.0",
+    "lucide-react": "^1.73.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.18.4"

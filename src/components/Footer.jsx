@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { LockKeyhole } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 
 const socialLinks = [
@@ -153,7 +154,7 @@ export default function Footer() {
               to="/admin"
               className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#BE185D] hover:text-[#E14E8B] transition-colors mb-6"
             >
-              🔐 Admin Login
+              <LockKeyhole className="w-4 h-4" /> Admin Login
             </Link>
             <div>
               <p className="text-sm font-medium mb-2">Stay updated</p>

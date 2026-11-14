@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Bot, Globe, Lightbulb, ShieldCheck, Sprout, Star, Target } from 'lucide-react';
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -54,7 +55,7 @@ export default function AboutPage() {
               />
             </div>
             <div className="absolute -bottom-6 -right-6 bg-[#BE185D] text-white rounded-2xl p-4 shadow-xl">
-              <p className="font-display font-bold text-3xl">4.9★</p>
+              <p className="flex items-center gap-1 font-display font-bold text-3xl">4.9<Star className="w-6 h-6 fill-current" /></p>
               <p className="text-xs font-semibold">Customer Rating</p>
             </div>
           </motion.div>
@@ -96,12 +97,12 @@ export default function AboutPage() {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[
-            { icon: '🎯', title: 'Customer First', desc: 'Every decision we make is centered around creating the best possible shopping experience.' },
-            { icon: '🤖', title: 'AI Innovation', desc: 'We push the boundaries of AI to give you personalized recommendations and smarter search.' },
-            { icon: '🌱', title: 'Sustainability', desc: 'Partnering with eco-conscious brands and offsetting our carbon footprint for every order.' },
-            { icon: '🛡️', title: 'Trust & Safety', desc: 'Rigorous seller vetting, authentic products, and bank-grade security on every transaction.' },
-            { icon: '🌍', title: 'Inclusivity', desc: "Premium shopping shouldn't be exclusive. We offer fair prices and serve customers worldwide." },
-            { icon: '💡', title: 'Transparency', desc: 'Honest pricing, clear policies, and no hidden fees. Ever.' },
+            { icon: Target, title: 'Customer First', desc: 'Every decision we make is centered around creating the best possible shopping experience.' },
+            { icon: Bot, title: 'AI Innovation', desc: 'We push the boundaries of AI to give you personalized recommendations and smarter search.' },
+            { icon: Sprout, title: 'Sustainability', desc: 'Partnering with eco-conscious brands and offsetting our carbon footprint for every order.' },
+            { icon: ShieldCheck, title: 'Trust & Safety', desc: 'Rigorous seller vetting, authentic products, and bank-grade security on every transaction.' },
+            { icon: Globe, title: 'Inclusivity', desc: "Premium shopping shouldn't be exclusive. We offer fair prices and serve customers worldwide." },
+            { icon: Lightbulb, title: 'Transparency', desc: 'Honest pricing, clear policies, and no hidden fees. Ever.' },
           ].map((v, i) => (
             <motion.div
               key={v.title}
@@ -111,7 +112,7 @@ export default function AboutPage() {
               transition={{ duration: 0.4, delay: i * 0.07 }}
               className="bg-white rounded-2xl p-6 border border-gray-100 hover:border-[#831843]/20 hover:shadow-md transition-all duration-300"
             >
-              <div className="w-12 h-12 bg-[#831843]/8 rounded-2xl flex items-center justify-center text-2xl mb-4">{v.icon}</div>
+              <div className="w-12 h-12 bg-[#831843]/8 rounded-2xl flex items-center justify-center mb-4"><v.icon className="w-6 h-6 text-[#831843]" /></div>
               <h3 className="font-display font-bold text-[#17211D] mb-2">{v.title}</h3>
               <p className="text-[#6B756F] text-sm leading-relaxed">{v.desc}</p>
             </motion.div>

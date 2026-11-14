@@ -1,5 +1,24 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import {
+  ArrowRight,
+  Ban,
+  BarChart3,
+  Clock,
+  FolderTree,
+  Lock,
+  Mail,
+  Package,
+  Pencil,
+  Receipt,
+  ShoppingBag,
+  Star,
+  Ticket,
+  TriangleAlert,
+  Users,
+  Wallet,
+  X,
+} from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import {
@@ -47,15 +66,15 @@ const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded'];
 const DELIVERY_STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
 const adminSections = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'products', label: 'Products', icon: '🛍️' },
-  { id: 'categories', label: 'Categories', icon: '🗂️' },
-  { id: 'inventory', label: 'Inventory', icon: '📦' },
-  { id: 'orders', label: 'Orders', icon: '🧾' },
-  { id: 'coupons', label: 'Coupons', icon: '🎟️' },
-  { id: 'users', label: 'Users', icon: '👥' },
-  { id: 'reviews', label: 'Reviews', icon: '⭐' },
-  { id: 'messages', label: 'Messages', icon: '✉️' },
+  { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+  { id: 'products', label: 'Products', icon: ShoppingBag },
+  { id: 'categories', label: 'Categories', icon: FolderTree },
+  { id: 'inventory', label: 'Inventory', icon: Package },
+  { id: 'orders', label: 'Orders', icon: Receipt },
+  { id: 'coupons', label: 'Coupons', icon: Ticket },
+  { id: 'users', label: 'Users', icon: Users },
+  { id: 'reviews', label: 'Reviews', icon: Star },
+  { id: 'messages', label: 'Messages', icon: Mail },
 ];
 
 export default function AdminPage() {
@@ -329,7 +348,7 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen bg-[#FAFAF7] pt-32 flex items-center justify-center text-center px-4">
         <div>
-          <div className="text-5xl mb-4">🔒</div>
+          <div className="flex justify-center mb-4"><Lock className="w-12 h-12 text-[#831843]" /></div>
           <h2 className="font-display font-bold text-2xl text-[#17211D] mb-3">Admin Access Required</h2>
           <Link to="/login" className="px-6 py-3 bg-[#831843] text-white rounded-xl font-semibold inline-block hover:bg-[#9F1239] transition-colors">Sign In</Link>
         </div>
@@ -355,7 +374,7 @@ export default function AdminPage() {
                     : 'text-white/60 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <span>{item.icon}</span>
+                <item.icon className="w-4 h-4 shrink-0" />
                 {item.label}
               </Link>
             ))}
@@ -371,7 +390,7 @@ export default function AdminPage() {
                 section === item.id ? 'bg-[#831843] text-white' : 'text-white/60 hover:text-white'
               }`}
             >
-              <span>{item.icon}</span>
+              <item.icon className="w-3.5 h-3.5 shrink-0" />
               {item.label}
             </Link>
           ))}
@@ -484,17 +503,17 @@ export default function AdminPage() {
 
 function DashboardSection({ stats, loading, lowStock, onRefresh, onManageInventory, onManageOrders }) {
   const primaryCards = [
-    { label: 'Total Products', value: stats?.totalProducts, icon: '🛍️', hint: 'In catalog' },
-    { label: 'Categories', value: stats?.totalCategories, icon: '🗂️', hint: `${stats?.totalSubcategories ?? 0} subcategories` },
-    { label: 'Low Stock', value: stats?.lowStock, icon: '⚠️', hint: 'Under 10 units', tone: 'warning' },
-    { label: 'Out of Stock', value: stats?.outOfStock, icon: '🚫', hint: 'Needs restocking', tone: 'danger' },
+    { label: 'Total Products', value: stats?.totalProducts, icon: ShoppingBag, hint: 'In catalog' },
+    { label: 'Categories', value: stats?.totalCategories, icon: FolderTree, hint: `${stats?.totalSubcategories ?? 0} subcategories` },
+    { label: 'Low Stock', value: stats?.lowStock, icon: TriangleAlert, hint: 'Under 10 units', tone: 'warning' },
+    { label: 'Out of Stock', value: stats?.outOfStock, icon: Ban, hint: 'Needs restocking', tone: 'danger' },
   ];
 
   const secondaryCards = [
-    { label: 'Total Users', value: stats?.totalUsers, icon: '👥' },
-    { label: 'Total Orders', value: stats?.totalOrders, icon: '🧾' },
-    { label: 'Pending Orders', value: stats?.pendingOrders, icon: '⏳' },
-    { label: 'Revenue', value: stats ? formatMoney(stats.totalRevenue) : undefined, icon: '💰' },
+    { label: 'Total Users', value: stats?.totalUsers, icon: Users },
+    { label: 'Total Orders', value: stats?.totalOrders, icon: Receipt },
+    { label: 'Pending Orders', value: stats?.pendingOrders, icon: Clock },
+    { label: 'Revenue', value: stats ? formatMoney(stats.totalRevenue) : undefined, icon: Wallet },
   ];
 
   return (
@@ -540,7 +559,7 @@ function DashboardSection({ stats, loading, lowStock, onRefresh, onManageInvento
 
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-display font-bold text-[#17211D]">⚠️ Low Stock Alert</h3>
+          <h3 className="flex items-center gap-1.5 font-display font-bold text-[#17211D]"><TriangleAlert className="w-4 h-4 text-orange-600" /> Low Stock Alert</h3>
           <button onClick={onManageInventory} className="text-xs text-[#9F1239] font-medium hover:underline">
             Manage inventory
           </button>
@@ -577,7 +596,7 @@ function DashboardSection({ stats, loading, lowStock, onRefresh, onManageInvento
       <div className="bg-white rounded-2xl border border-gray-100 p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#831843]/8 flex items-center justify-center text-lg">🧾</div>
+            <div className="w-10 h-10 rounded-xl bg-[#831843]/8 flex items-center justify-center"><Receipt className="w-5 h-5 text-[#831843]" /></div>
             <div>
               <h3 className="font-display font-bold text-[#17211D]">Orders</h3>
               <p className="text-sm text-[#6B756F] mt-1">
@@ -585,8 +604,8 @@ function DashboardSection({ stats, loading, lowStock, onRefresh, onManageInvento
               </p>
             </div>
           </div>
-          <button onClick={onManageOrders} className="text-sm font-semibold text-[#831843] hover:underline self-start sm:self-center shrink-0">
-            Manage orders →
+          <button onClick={onManageOrders} className="inline-flex items-center gap-1 text-sm font-semibold text-[#831843] hover:underline self-start sm:self-center shrink-0">
+            Manage orders <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -631,8 +650,8 @@ function ProductsSection({ products, loading, search, onSearch, categories, cate
           <p className="text-sm text-[#17211D]">
             You need at least one category before adding products.
           </p>
-          <button onClick={onGoToCategories} className="text-sm font-semibold text-[#831843] hover:underline self-start">
-            Create a category →
+          <button onClick={onGoToCategories} className="inline-flex items-center gap-1 text-sm font-semibold text-[#831843] hover:underline self-start">
+            Create a category <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -659,7 +678,7 @@ function ProductsSection({ products, loading, search, onSearch, categories, cate
               ) : products.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-5 py-16 text-center">
-                    <div className="text-4xl mb-3">🛍️</div>
+                    <div className="flex justify-center mb-3"><ShoppingBag className="w-9 h-9 text-[#831843]" /></div>
                     <p className="font-display font-semibold text-[#17211D]">
                       {search ? 'No products match your search' : 'No products yet'}
                     </p>
@@ -749,7 +768,7 @@ function CategoriesSection({ categories, loading, onAdd, onEdit, onDelete, onAdd
         </div>
       ) : categories.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-          <div className="text-4xl mb-3">🗂️</div>
+          <div className="flex justify-center mb-3"><FolderTree className="w-9 h-9 text-[#831843]" /></div>
           <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">No categories yet</h3>
           <p className="text-sm text-[#6B756F] mb-5">Create your first category to start building your catalog.</p>
           <button onClick={onAdd} className="px-5 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors">
@@ -793,14 +812,14 @@ function CategoriesSection({ categories, loading, onAdd, onEdit, onDelete, onAdd
                           className="p-1 rounded-full hover:bg-gray-200 text-[#6B756F] transition-colors"
                           aria-label={`Edit ${subcategory.name}`}
                         >
-                          ✎
+                          <Pencil className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => onDeleteSubcategory(category, subcategory)}
                           className="p-1 rounded-full hover:bg-red-100 text-red-500 transition-colors"
                           aria-label={`Delete ${subcategory.name}`}
                         >
-                          ×
+                          <X className="w-3 h-3" />
                         </button>
                       </span>
                     ))}
@@ -886,7 +905,7 @@ function InventorySection({ products, loading, drafts, changesCount, filter, sav
               ) : products.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-5 py-16 text-center">
-                    <div className="text-4xl mb-3">📦</div>
+                    <div className="flex justify-center mb-3"><Package className="w-9 h-9 text-[#831843]" /></div>
                     <p className="font-display font-semibold text-[#17211D]">No products found</p>
                     <p className="text-sm text-[#6B756F] mt-1">
                       {filter === 'all' ? 'Add products to start tracking inventory.' : 'No products match this stock filter.'}
@@ -1209,7 +1228,7 @@ function OrdersSection() {
               ) : orders.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center">
-                    <div className="text-4xl mb-3">🧾</div>
+                    <div className="flex justify-center mb-3"><Receipt className="w-9 h-9 text-[#831843]" /></div>
                     <p className="font-display font-semibold text-[#17211D]">
                       {hasFilters ? 'No orders match these filters' : 'No orders yet'}
                     </p>
@@ -1297,7 +1316,7 @@ function OrdersSection() {
                   {invoiceBusy ? 'Preparing...' : 'Invoice'}
                 </button>
                 <button onClick={closeDetail} className="p-2 rounded-lg text-[#6B756F] hover:bg-gray-100 transition-colors" aria-label="Close">
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -1569,7 +1588,7 @@ function ReviewsSection() {
               ) : reviews.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-5 py-16 text-center">
-                    <div className="text-4xl mb-3">⭐</div>
+                    <div className="flex justify-center mb-3"><Star className="w-9 h-9 text-[#831843]" /></div>
                     <p className="font-display font-semibold text-[#17211D]">
                       {rating ? 'No reviews with this rating' : 'No reviews yet'}
                     </p>
@@ -1607,7 +1626,7 @@ function ReviewsSection() {
                       </div>
                     </td>
                     <td className="px-5 py-3 whitespace-nowrap">
-                      <span className="text-[#BE185D] font-semibold">{review.rating}★</span>
+                      <span className="inline-flex items-center gap-0.5 text-[#BE185D] font-semibold">{review.rating}<Star className="w-3.5 h-3.5 fill-current" /></span>
                     </td>
                     <td className="px-5 py-3">
                       {review.title && <p className="font-medium text-[#17211D]">{review.title}</p>}
@@ -1818,7 +1837,7 @@ function UsersSection() {
               ) : users.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center">
-                    <div className="text-4xl mb-3">👥</div>
+                    <div className="flex justify-center mb-3"><Users className="w-9 h-9 text-[#831843]" /></div>
                     <p className="font-display font-semibold text-[#17211D]">
                       {search || status ? 'No users match your filters' : 'No users yet'}
                     </p>
@@ -2144,7 +2163,7 @@ function MessagesSection() {
           </div>
         ) : messages.length === 0 ? (
           <div className="py-16 text-center">
-            <div className="text-4xl mb-3">✉️</div>
+            <div className="flex justify-center mb-3"><Mail className="w-9 h-9 text-[#831843]" /></div>
             <p className="font-display font-semibold text-[#17211D]">
               {status === 'unread' ? 'No unread messages' : 'No messages yet'}
             </p>
@@ -2475,7 +2494,7 @@ function CouponsSection() {
               ) : coupons.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-16 text-center">
-                    <div className="text-4xl mb-3">🎟️</div>
+                    <div className="flex justify-center mb-3"><Ticket className="w-9 h-9 text-[#831843]" /></div>
                     <p className="font-display font-semibold text-[#17211D]">No coupons yet</p>
                     <p className="text-sm text-[#6B756F] mt-1">Create your first discount code to get started.</p>
                   </td>
@@ -2766,7 +2785,7 @@ function AdminModal({ open, title, subtitle, onClose, footer, children }) {
             className="w-8 h-8 rounded-lg text-[#6B756F] hover:bg-gray-100 transition-colors shrink-0"
             aria-label="Close"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </div>
         <div className="px-6 py-5 max-h-[65vh] overflow-y-auto">{children}</div>
@@ -2776,14 +2795,14 @@ function AdminModal({ open, title, subtitle, onClose, footer, children }) {
   );
 }
 
-function StatCard({ label, value, icon, hint, tone = 'default', compact = false }) {
+function StatCard({ label, value, icon: Icon, hint, tone = 'default', compact = false }) {
   const toneClass = tone === 'danger' ? 'text-red-600' : tone === 'warning' ? 'text-orange-600' : 'text-[#17211D]';
 
   return (
     <div className={`bg-white rounded-2xl border border-gray-100 ${compact ? 'p-4' : 'p-5'}`}>
       <div className="flex items-start justify-between gap-2 mb-3">
-        <span className={`rounded-xl bg-[#831843]/8 flex items-center justify-center ${compact ? 'w-9 h-9 text-lg' : 'w-10 h-10 text-xl'}`}>
-          {icon}
+        <span className={`rounded-xl bg-[#831843]/8 flex items-center justify-center ${compact ? 'w-9 h-9' : 'w-10 h-10'}`}>
+          <Icon className={compact ? 'w-4 h-4' : 'w-5 h-5'} />
         </span>
         {hint && <span className="text-xs text-[#6B756F] text-right">{hint}</span>}
       </div>

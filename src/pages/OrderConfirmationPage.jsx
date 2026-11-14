@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Package } from 'lucide-react';
 import { getOrder, downloadInvoice } from '../services/orders';
 import { useApp } from '../contexts/AppContext';
 import OrderTimeline from '../components/OrderTimeline';
@@ -68,7 +69,7 @@ export default function OrderConfirmationPage() {
     return (
       <div className="min-h-screen bg-[#FAFAF7] pt-32 flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
-          <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6">📦</div>
+          <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6"><Package className="w-9 h-9 text-gray-400" /></div>
           <h2 className="font-display font-bold text-2xl text-[#17211D] mb-3">Order not found</h2>
           <p className="text-[#6B756F] mb-8">{error || 'We could not find this order.'}</p>
           <Link to="/dashboard/orders" className="px-8 py-4 bg-[#831843] text-white rounded-2xl font-bold hover:bg-[#9F1239] transition-colors inline-block">

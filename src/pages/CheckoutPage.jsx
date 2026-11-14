@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, Banknote, Check, MapPin, ShoppingCart } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { listAddresses } from '../services/addresses';
 import { createOrder } from '../services/orders';
@@ -174,7 +175,7 @@ export default function CheckoutPage() {
     return (
       <div className="min-h-screen bg-[#FAFAF7] pt-32 flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
-          <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6">🛒</div>
+          <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6"><ShoppingCart className="w-9 h-9 text-gray-400" /></div>
           <h2 className="font-display font-bold text-2xl text-[#17211D] mb-3">Your cart is empty</h2>
           <p className="text-[#6B756F] mb-8">Add a product before heading to checkout.</p>
           <Link to="/products" className="px-8 py-4 bg-[#831843] text-white rounded-2xl font-bold hover:bg-[#9F1239] transition-colors inline-block">
@@ -202,7 +203,7 @@ export default function CheckoutPage() {
                   i === stepIndex ? 'bg-[#831843] text-white' :
                   'bg-gray-200 text-[#6B756F]'
                 }`}>
-                  {i < stepIndex ? '✓' : i + 1}
+                  {i < stepIndex ? <Check className="w-4 h-4" /> : i + 1}
                 </div>
                 <span className={`text-sm font-medium hidden sm:block ${i === stepIndex ? 'text-[#17211D]' : 'text-[#6B756F]'}`}>
                   {stepLabels[i]}
@@ -371,9 +372,9 @@ export default function CheckoutPage() {
                     <button
                       onClick={() => setCurrentStep('summary')}
                       disabled={!canProceedAddress}
-                      className="w-full mt-6 py-4 bg-[#831843] text-white rounded-2xl font-bold hover:bg-[#9F1239] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full mt-6 py-4 bg-[#831843] text-white rounded-2xl font-bold hover:bg-[#9F1239] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      Continue to Order Summary →
+                      Continue to Order Summary <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
                 </motion.div>
@@ -399,7 +400,7 @@ export default function CheckoutPage() {
 
                     <div className="border-t border-gray-100 pt-4 mb-4">
                       <div className="flex items-start gap-2 p-3 bg-[#831843]/5 rounded-xl text-sm">
-                        <span>📍</span>
+                        <MapPin className="w-4 h-4 text-[#831843] shrink-0 mt-0.5" />
                         <div>
                           <p className="text-[#17211D] font-medium">{deliveryAddress?.name} · {deliveryAddress?.phone}</p>
                           <p className="text-[#6B756F]">
@@ -472,9 +473,9 @@ export default function CheckoutPage() {
                       </button>
                       <button
                         onClick={() => setCurrentStep('payment')}
-                        className="flex-1 py-4 bg-[#831843] text-white rounded-2xl font-bold hover:bg-[#9F1239] transition-colors"
+                        className="flex-1 py-4 bg-[#831843] text-white rounded-2xl font-bold hover:bg-[#9F1239] transition-colors flex items-center justify-center gap-2"
                       >
-                        Continue to Payment →
+                        Continue to Payment <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -488,7 +489,7 @@ export default function CheckoutPage() {
                     <p className="text-sm text-[#6B756F] mb-5">No online payment needed. Pay in cash when your order is delivered.</p>
 
                     <div className="p-4 rounded-xl border-2 border-[#831843] bg-[#831843]/5 flex items-start gap-3">
-                      <span className="text-2xl">💵</span>
+                      <Banknote className="w-6 h-6 text-[#831843] shrink-0 mt-0.5" />
                       <div>
                         <p className="font-semibold text-[#17211D]">Cash on Delivery</p>
                         <p className="text-sm text-[#6B756F] mt-0.5">
@@ -561,7 +562,7 @@ export default function CheckoutPage() {
                 </div>
               </div>
               <div className="mt-4 flex items-center justify-center gap-2 text-xs text-[#6B756F]">
-                <span>💵</span>
+                <Banknote className="w-4 h-4" />
                 Cash on Delivery
               </div>
             </div>

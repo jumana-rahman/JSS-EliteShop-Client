@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, ShoppingCart, TriangleAlert } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { computePricing, FREE_SHIPPING_THRESHOLD } from '../lib/pricing';
 
@@ -62,7 +63,7 @@ export default function CartPage() {
     return (
       <div className="min-h-screen bg-[#FAFAF7] pt-32 flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
-          <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6">🛒</div>
+          <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6"><ShoppingCart className="w-9 h-9 text-gray-400" /></div>
           <h2 className="font-display font-bold text-2xl text-[#17211D] mb-3">Your cart is empty</h2>
           <p className="text-[#6B756F] mb-8">Looks like you haven't added anything yet. Let's change that!</p>
           <Link to="/products" className="px-8 py-4 bg-[#831843] text-white rounded-2xl font-bold hover:bg-[#9F1239] transition-colors inline-block">
@@ -128,7 +129,7 @@ export default function CartPage() {
                     </div>
 
                     {!item.product.inStock && (
-                      <p className="text-xs text-red-500 font-medium mt-1">⚠️ This item is out of stock</p>
+                      <p className="flex items-center gap-1 text-xs text-red-500 font-medium mt-1"><TriangleAlert className="w-3.5 h-3.5" /> This item is out of stock</p>
                     )}
 
                     <div className="flex items-center justify-between mt-3">
@@ -250,9 +251,9 @@ export default function CartPage() {
               <button
                 onClick={() => navigate('/checkout')}
                 disabled={hasStockIssue}
-                className="w-full mt-5 py-4 bg-[#831843] text-white rounded-2xl font-display font-bold hover:bg-[#9F1239] transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full mt-5 py-4 bg-[#831843] text-white rounded-2xl font-display font-bold hover:bg-[#9F1239] transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Proceed to Checkout →
+                Proceed to Checkout <ArrowRight className="w-4 h-4" />
               </button>
 
               <div className="mt-4 flex items-center justify-center gap-2 text-xs text-[#6B756F]">

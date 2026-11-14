@@ -1,6 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import {
+  ArrowRight,
+  Camera,
+  CircleCheck,
+  Clock,
+  Hand,
+  Heart,
+  Home,
+  Lock,
+  LogOut,
+  MapPin,
+  Package,
+  Settings,
+  Sparkles,
+  Star,
+  TriangleAlert,
+  User,
+} from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { authClient } from '../lib/authClient';
 import { listOrders, downloadInvoice } from '../services/orders';
@@ -25,13 +43,13 @@ function readFileAsDataUrl(file) {
 }
 
 const sidebarItems = [
-  { id: 'overview', label: 'Overview', icon: '🏠' },
-  { id: 'orders', label: 'My Orders', icon: '📦' },
-  { id: 'wishlist', label: 'Wishlist', icon: '❤️' },
-  { id: 'reviews', label: 'Reviews', icon: '⭐' },
-  { id: 'addresses', label: 'Addresses', icon: '📍' },
-  { id: 'profile', label: 'Profile', icon: '👤' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' },
+  { id: 'overview', label: 'Overview', icon: Home },
+  { id: 'orders', label: 'My Orders', icon: Package },
+  { id: 'wishlist', label: 'Wishlist', icon: Heart },
+  { id: 'reviews', label: 'Reviews', icon: Star },
+  { id: 'addresses', label: 'Addresses', icon: MapPin },
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
 const statusColors = {
@@ -407,7 +425,7 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-[#FAFAF7] pt-32 flex items-center justify-center px-4 text-center">
         <div>
-          <div className="text-5xl mb-4">🔒</div>
+          <div className="flex justify-center mb-4"><Lock className="w-12 h-12 text-[#831843]" /></div>
           <h2 className="font-display font-bold text-2xl text-[#17211D] mb-3">Please Sign In</h2>
           <p className="text-[#6B756F] mb-6">Access your account to view orders and more.</p>
           <Link to="/login" className="px-8 py-4 bg-[#831843] text-white rounded-2xl font-bold hover:bg-[#9F1239] transition-colors inline-block">
@@ -461,7 +479,7 @@ export default function DashboardPage() {
                         : 'text-[#6B756F] hover:bg-gray-50 hover:text-[#17211D]'
                     }`}
                   >
-                    <span>{item.icon}</span>
+                    <item.icon className="w-4 h-4 shrink-0" />
                     {item.label}
                   </button>
                 ))}
@@ -469,7 +487,7 @@ export default function DashboardPage() {
                   onClick={() => { logout(); navigate('/'); }}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all mt-1"
                 >
-                  <span>🚪</span> Sign Out
+                  <LogOut className="w-4 h-4" /> Sign Out
                 </button>
               </nav>
             </div>
@@ -481,11 +499,11 @@ export default function DashboardPage() {
               <button
                 key={item.id}
                 onClick={() => goToSection(item.id)}
-                className={`flex-1 min-w-fit px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
+                className={`flex-1 min-w-fit inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-colors ${
                   activeSection === item.id ? 'bg-[#831843] text-white' : 'text-white/70'
                 }`}
               >
-                {item.icon} {item.label}
+                <item.icon className="w-3.5 h-3.5" /> {item.label}
               </button>
             ))}
           </div>
@@ -497,19 +515,19 @@ export default function DashboardPage() {
               {activeSection === 'overview' && (
                 <div className="space-y-6">
                   <div>
-                    <h2 className="font-display font-bold text-2xl text-[#17211D]">Welcome back, {user?.name?.split(' ')[0]}! 👋</h2>
+                    <h2 className="flex items-center gap-2 font-display font-bold text-2xl text-[#17211D]">Welcome back, {user?.name?.split(' ')[0]}! <Hand className="w-6 h-6" /></h2>
                     <p className="text-sm text-[#6B756F] mt-1">Here is what is happening with your account.</p>
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
-                      { label: 'Total Orders', value: orders.length, icon: '📦', color: 'bg-[#831843]/8 text-[#831843]' },
-                      { label: 'In Progress', value: pendingOrders, icon: '⏳', color: 'bg-[#E14E8B]/10 text-[#E14E8B]' },
-                      { label: 'Delivered', value: completedOrders, icon: '✅', color: 'bg-[#9F1239]/10 text-[#9F1239]' },
-                      { label: 'Wishlist', value: wishlist.length, icon: '❤️', color: 'bg-red-50 text-red-600' },
+                      { label: 'Total Orders', value: orders.length, icon: Package, color: 'bg-[#831843]/8 text-[#831843]' },
+                      { label: 'In Progress', value: pendingOrders, icon: Clock, color: 'bg-[#E14E8B]/10 text-[#E14E8B]' },
+                      { label: 'Delivered', value: completedOrders, icon: CircleCheck, color: 'bg-[#9F1239]/10 text-[#9F1239]' },
+                      { label: 'Wishlist', value: wishlist.length, icon: Heart, color: 'bg-red-50 text-red-600' },
                     ].map(stat => (
                       <div key={stat.label} className="bg-white rounded-2xl p-5 border border-gray-100">
-                        <div className={`w-10 h-10 ${stat.color} rounded-xl flex items-center justify-center text-lg mb-3`}>{stat.icon}</div>
+                        <div className={`w-10 h-10 ${stat.color} rounded-xl flex items-center justify-center mb-3`}><stat.icon className="w-5 h-5" /></div>
                         <p className="font-display font-bold text-2xl text-[#17211D]">
                           {ordersLoading ? '—' : stat.value}
                         </p>
@@ -539,7 +557,7 @@ export default function DashboardPage() {
                       </div>
                     ) : recentOrders.length === 0 ? (
                       <div className="px-6 py-12 text-center">
-                        <div className="text-4xl mb-3">📦</div>
+                        <div className="flex justify-center mb-3"><Package className="w-9 h-9 text-[#831843]" /></div>
                         <p className="font-display font-semibold text-[#17211D]">No orders yet</p>
                         <p className="text-sm text-[#6B756F] mt-1 mb-4">Your orders will show up here once you check out.</p>
                         <Link to="/products" className="inline-block px-5 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors">
@@ -599,7 +617,7 @@ export default function DashboardPage() {
                     </div>
                   ) : ordersError ? (
                     <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-                      <div className="text-4xl mb-3">⚠️</div>
+                      <div className="flex justify-center mb-3"><TriangleAlert className="w-9 h-9 text-red-500" /></div>
                       <p className="text-[#6B756F] mb-4">{ordersError}</p>
                       <button onClick={() => window.location.reload()} className="px-5 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors">
                         Try Again
@@ -607,7 +625,7 @@ export default function DashboardPage() {
                     </div>
                   ) : orders.length === 0 ? (
                     <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-                      <div className="text-5xl mb-3">📦</div>
+                      <div className="flex justify-center mb-3"><Package className="w-12 h-12 text-[#831843]" /></div>
                       <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">No orders yet</h3>
                       <p className="text-sm text-[#6B756F] mb-5">Place your first order to see it here with live tracking.</p>
                       <Link to="/products" className="inline-block px-5 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors">
@@ -690,12 +708,12 @@ export default function DashboardPage() {
                     </div>
                   ) : myReviewsError ? (
                     <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-                      <div className="text-4xl mb-3">⚠️</div>
+                      <div className="flex justify-center mb-3"><TriangleAlert className="w-9 h-9 text-red-500" /></div>
                       <p className="text-[#6B756F]">{myReviewsError}</p>
                     </div>
                   ) : myReviews.length === 0 ? (
                     <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-                      <div className="text-5xl mb-3">⭐</div>
+                      <div className="flex justify-center mb-3"><Star className="w-12 h-12 text-[#831843]" /></div>
                       <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">No reviews yet</h3>
                       <p className="text-sm text-[#6B756F] mb-5 max-w-md mx-auto">
                         Once an order is delivered, open the product page to share your experience.
@@ -771,7 +789,7 @@ export default function DashboardPage() {
                         <p className="font-display font-bold text-xl text-[#17211D] truncate">{user?.name}</p>
                         <p className="text-sm text-[#6B756F] truncate">{user?.email}</p>
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#BE185D]/15 text-[#BE185D] text-xs font-semibold rounded-full mt-1">
-                          ✨ {user?.role === 'admin' ? 'Admin' : 'Elite Member'}
+                          <Sparkles className="w-3 h-3" /> {user?.role === 'admin' ? 'Admin' : 'Elite Member'}
                         </span>
                       </div>
                     </div>
@@ -818,7 +836,7 @@ export default function DashboardPage() {
                               disabled={profileSaving}
                               className="hidden"
                             />
-                            📷 {avatarFile ? 'Choose another photo' : 'Choose photo'}
+                            <Camera className="w-4 h-4" /> {avatarFile ? 'Choose another photo' : 'Choose photo'}
                           </label>
                           {profileImage && (
                             <button
@@ -855,14 +873,14 @@ export default function DashboardPage() {
                         {wishlist.length} saved item{wishlist.length === 1 ? '' : 's'}
                       </p>
                     </div>
-                    <Link to="/products" className="text-sm text-[#831843] font-medium hover:underline">
-                      Browse products →
+                    <Link to="/products" className="inline-flex items-center gap-1 text-sm text-[#831843] font-medium hover:underline">
+                      Browse products <ArrowRight className="w-4 h-4" />
                     </Link>
                   </div>
 
                   {wishlist.length === 0 ? (
                     <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-                      <div className="text-5xl mb-3">🤍</div>
+                      <div className="flex justify-center mb-3"><Heart className="w-12 h-12 text-red-400" /></div>
                       <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">Your wishlist is empty</h3>
                       <p className="text-sm text-[#6B756F] mb-5">Save items you love and revisit them anytime.</p>
                       <Link to="/products" className="inline-block px-5 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors">
@@ -1005,7 +1023,7 @@ export default function DashboardPage() {
                     </div>
                   ) : addressError ? (
                     <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-                      <div className="text-4xl mb-3">⚠️</div>
+                      <div className="flex justify-center mb-3"><TriangleAlert className="w-9 h-9 text-red-500" /></div>
                       <p className="text-[#6B756F] mb-4">{addressError}</p>
                       <button onClick={loadAddresses} className="px-5 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors">
                         Try Again
@@ -1013,7 +1031,7 @@ export default function DashboardPage() {
                     </div>
                   ) : addresses.length === 0 ? (
                     <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-                      <div className="text-5xl mb-3">📍</div>
+                      <div className="flex justify-center mb-3"><MapPin className="w-12 h-12 text-[#831843]" /></div>
                       <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">No saved addresses</h3>
                       <p className="text-sm text-[#6B756F] mb-5">Add an address to speed up checkout.</p>
                       <button onClick={() => openAddressForm()} className="px-5 py-2.5 bg-[#831843] text-white rounded-xl text-sm font-semibold hover:bg-[#9F1239] transition-colors">

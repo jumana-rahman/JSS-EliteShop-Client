@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { ArrowLeft, Check, Lock, RotateCcw, Search, ShoppingCart, Sparkles, Star, Truck } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { StarRating } from '../components/ProductCard';
 import ProductCard from '../components/ProductCard';
@@ -230,12 +231,12 @@ export default function ProductDetailPage() {
     return (
       <div className="min-h-screen bg-[#FAFAF7] pt-32 flex items-center justify-center">
         <div className="text-center px-4">
-          <div className="text-6xl mb-4">🔍</div>
+          <div className="flex justify-center mb-4"><Search className="w-12 h-12 text-gray-400" /></div>
           <h2 className="font-display font-bold text-2xl text-[#17211D] mb-2">
             {error ? 'Could Not Load Product' : 'Product Not Found'}
           </h2>
           {error && <p className="text-[#6B756F] text-sm mb-4">{error}</p>}
-          <Link to="/products" className="text-[#831843] font-medium hover:underline">← Back to Products</Link>
+          <Link to="/products" className="inline-flex items-center gap-1 text-[#831843] font-medium hover:underline"><ArrowLeft className="w-4 h-4" /> Back to Products</Link>
         </div>
       </div>
     );
@@ -346,9 +347,11 @@ export default function ProductDetailPage() {
               <button
                 onClick={() => product.inStock && addToCart(product, quantity)}
                 disabled={!product.inStock}
-                className="flex-1 py-4 bg-[#831843] text-white rounded-2xl font-display font-bold text-base hover:bg-[#9F1239] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                className="flex-1 py-4 bg-[#831843] text-white rounded-2xl font-display font-bold text-base hover:bg-[#9F1239] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-2"
               >
-                {product.inStock ? '🛒 Add to Cart' : 'Out of Stock'}
+                {product.inStock ? (
+                  <><ShoppingCart className="w-5 h-5" /> Add to Cart</>
+                ) : 'Out of Stock'}
               </button>
               <button
                 onClick={() => toggleWishlist(product)}
@@ -365,12 +368,12 @@ export default function ProductDetailPage() {
             {/* Trust badges */}
             <div className="grid grid-cols-3 gap-3 p-4 bg-white rounded-2xl border border-gray-100">
               {[
-                { icon: '🚚', text: 'Free shipping over $50' },
-                { icon: '↩️', text: '30-day returns' },
-                { icon: '🔒', text: 'Secure checkout' },
+                { icon: Truck, text: 'Free shipping over $50' },
+                { icon: RotateCcw, text: '30-day returns' },
+                { icon: Lock, text: 'Secure checkout' },
               ].map(badge => (
                 <div key={badge.text} className="text-center">
-                  <div className="text-xl mb-1">{badge.icon}</div>
+                  <div className="flex justify-center mb-1"><badge.icon className="w-5 h-5 text-[#831843]" /></div>
                   <p className="text-xs text-[#6B756F] leading-tight">{badge.text}</p>
                 </div>
               ))}
@@ -379,7 +382,7 @@ export default function ProductDetailPage() {
             {/* Complete My Look */}
             {product.category === 'Fashion' && (
               <div className="mt-4 p-4 bg-gradient-to-r from-[#831843]/5 to-[#9F1239]/5 border border-[#831843]/10 rounded-2xl">
-                <p className="text-sm font-semibold text-[#831843] mb-1">✨ Complete My Look</p>
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-[#831843] mb-1"><Sparkles className="w-4 h-4" /> Complete My Look</p>
                 <p className="text-xs text-[#6B756F]">Let our AI stylist suggest matching items for this piece.</p>
               </div>
             )}
@@ -452,7 +455,7 @@ export default function ProductDetailPage() {
                       : 0;
                     return (
                       <div key={star} className="flex items-center gap-3 mb-1">
-                        <span className="text-xs text-[#6B756F] w-4">{star}★</span>
+                        <span className="flex items-center gap-0.5 text-xs text-[#6B756F] w-6">{star}<Star className="w-3 h-3 fill-current" /></span>
                         <div className="flex-1 h-2 bg-gray-100 rounded-full">
                           <div className="h-full bg-[#BE185D] rounded-full" style={{ width: `${pct}%` }} />
                         </div>
@@ -483,7 +486,7 @@ export default function ProductDetailPage() {
                     </button>
                   ) : eligibility?.hasReviewed ? (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#9F1239]/10 text-[#9F1239] rounded-full text-xs font-semibold">
-                      ✓ You reviewed this product
+                      <Check className="w-3.5 h-3.5" /> You reviewed this product
                     </span>
                   ) : eligibility ? (
                     <span className="text-xs text-[#6B756F] max-w-56 text-right block">{eligibility.reason}</span>
@@ -500,10 +503,10 @@ export default function ProductDetailPage() {
                         key={star}
                         type="button"
                         onClick={() => setReviewForm(previous => ({ ...previous, rating: star }))}
-                        className={`text-2xl transition-transform hover:scale-110 ${star <= reviewForm.rating ? 'text-[#BE185D]' : 'text-gray-300'}`}
+                        className={`transition-transform hover:scale-110 ${star <= reviewForm.rating ? 'text-[#BE185D]' : 'text-gray-300'}`}
                         aria-label={`${star} star${star === 1 ? '' : 's'}`}
                       >
-                        ★
+                        <Star className="w-6 h-6 fill-current" />
                       </button>
                     ))}
                   </div>
@@ -546,7 +549,7 @@ export default function ProductDetailPage() {
                 </div>
               ) : reviews.length === 0 ? (
                 <div className="text-center py-10">
-                  <div className="text-4xl mb-3">⭐</div>
+                  <div className="flex justify-center mb-3"><Star className="w-9 h-9 text-[#831843]" /></div>
                   <p className="font-display font-semibold text-[#17211D]">No reviews yet</p>
                   <p className="text-sm text-[#6B756F] mt-1">Be the first to share your experience.</p>
                 </div>
@@ -567,7 +570,7 @@ export default function ProductDetailPage() {
                           <p className="text-xs text-[#6B756F]">
                             {new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             {review.verifiedPurchase && (
-                              <span className="ml-2 text-[#9F1239] font-semibold">✓ Verified purchase</span>
+                              <span className="ml-2 inline-flex items-center gap-0.5 text-[#9F1239] font-semibold"><Check className="w-3.5 h-3.5" /> Verified purchase</span>
                             )}
                           </p>
                         </div>
@@ -599,7 +602,7 @@ export default function ProductDetailPage() {
             <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-5">
               <div>
                 <p className="text-xs uppercase tracking-widest text-white/60 font-semibold">AI Stylist</p>
-                <h2 className="font-display font-bold text-2xl mt-1">Complete My Look ✨</h2>
+                <h2 className="flex items-center gap-2 font-display font-bold text-2xl mt-1">Complete My Look <Sparkles className="w-5 h-5" /></h2>
                 <p className="text-white/70 text-sm mt-1 max-w-lg">
                   Let AI suggest complementary pieces from our catalog that pair with this product.
                 </p>

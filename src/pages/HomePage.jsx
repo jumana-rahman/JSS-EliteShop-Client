@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { ArrowRight, FolderTree, Lock, RotateCcw, ShieldCheck, ShoppingBag, Sparkles, Star, Zap } from 'lucide-react';
 import ProductCard, { StarRating } from '../components/ProductCard';
 import QuickViewModal from '../components/QuickViewModal';
 import { useApp } from '../contexts/AppContext';
@@ -111,7 +112,7 @@ export default function HomePage() {
             transition={{ duration: 0.7, ease: "easeOut" }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#BE185D]/20 border border-[#BE185D]/30 rounded-full mb-6">
-              <span className="text-[#FAFAF7] text-xs">✨</span>
+              <Sparkles className="w-3.5 h-3.5 text-[#FAFAF7]" />
               <span className="text-[#FAFAF7] text-xs font-semibold tracking-wide uppercase">AI-Powered Shopping</span>
             </div>
 
@@ -126,26 +127,29 @@ export default function HomePage() {
             <div className="flex flex-wrap gap-4">
               <Link
                 to="/products"
-                className="px-8 py-4 bg-[#BE185D] text-white rounded-2xl font-display font-bold text-base hover:bg-[#E14E8B] transition-all duration-200 hover:shadow-lg hover:shadow-[#BE185D]/30 active:scale-95"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-[#BE185D] text-white rounded-2xl font-display font-bold text-base hover:bg-[#E14E8B] transition-all duration-200 hover:shadow-lg hover:shadow-[#BE185D]/30 active:scale-95"
               >
-                Shop Now →
+                Shop Now <ArrowRight className="w-4 h-4" />
               </Link>
               <button
                 onClick={() => setAiChatOpen(true)}
                 className="px-8 py-4 bg-white/10 text-white border border-white/20 rounded-2xl font-display font-semibold text-base hover:bg-white/20 transition-all duration-200 backdrop-blur-sm flex items-center gap-2"
               >
-                <span>✨</span> Try AI Shopping
+                <Sparkles className="w-4 h-4" /> Try AI Shopping
               </button>
             </div>
 
             <div className="mt-12 grid grid-cols-3 gap-6 max-w-sm">
               {[
                 { value: '50K+', label: 'Products' },
-                { value: '4.9★', label: 'Rating' },
+                { value: '4.9', label: 'Rating', icon: Star },
                 { value: '2M+', label: 'Customers' },
               ].map(stat => (
                 <div key={stat.label}>
-                  <p className="font-display font-bold text-2xl text-white">{stat.value}</p>
+                  <p className="flex items-center gap-0.5 font-display font-bold text-2xl text-white">
+                    {stat.value}
+                    {stat.icon && <stat.icon className="w-4 h-4 fill-current" />}
+                  </p>
                   <p className="text-white/50 text-sm">{stat.label}</p>
                 </div>
               ))}
@@ -173,7 +177,7 @@ export default function HomePage() {
                 className="absolute -bottom-6 -left-8 bg-white rounded-2xl p-4 shadow-2xl"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#831843]/10 rounded-xl flex items-center justify-center">🛡️</div>
+                  <div className="w-10 h-10 bg-[#831843]/10 rounded-xl flex items-center justify-center"><ShieldCheck className="w-5 h-5 text-[#831843]" /></div>
                   <div>
                     <p className="font-display font-bold text-[#17211D] text-sm">Secure & Fast</p>
                     <p className="text-[#6B756F] text-xs">SSL encrypted checkout</p>
@@ -186,7 +190,7 @@ export default function HomePage() {
                 className="absolute -top-6 -right-8 bg-white rounded-2xl p-4 shadow-2xl"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#BE185D]/10 rounded-xl flex items-center justify-center">⚡</div>
+                  <div className="w-10 h-10 bg-[#BE185D]/10 rounded-xl flex items-center justify-center"><Zap className="w-5 h-5 text-[#BE185D]" /></div>
                   <div>
                     <p className="font-display font-bold text-[#17211D] text-sm">Fast Delivery</p>
                     <p className="text-[#6B756F] text-xs">2-day shipping</p>
@@ -215,11 +219,11 @@ export default function HomePage() {
             ))
           ) : categories.length === 0 ? (
             <div className="col-span-full bg-white rounded-2xl border border-gray-100 p-10 text-center">
-              <div className="text-3xl mb-2">🗂️</div>
+              <div className="flex justify-center mb-2"><FolderTree className="w-8 h-8 text-[#831843]" /></div>
               <p className="font-display font-semibold text-[#17211D]">Categories are coming soon</p>
               <p className="text-[#6B756F] text-sm mt-1">Check back shortly or browse all products.</p>
-              <Link to="/products" className="inline-block mt-4 text-sm font-semibold text-[#831843] hover:underline">
-                Browse products →
+              <Link to="/products" className="inline-flex items-center gap-1 mt-4 text-sm font-semibold text-[#831843] hover:underline">
+                Browse products <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
           ) : (
@@ -250,8 +254,8 @@ export default function HomePage() {
             <p className="text-[#9F1239] text-sm font-semibold uppercase tracking-widest mb-2">Handpicked</p>
             <h2 className="font-display font-bold text-4xl text-[#17211D]">Featured Products</h2>
           </div>
-          <Link to="/products" className="text-[#831843] font-semibold text-sm hover:text-[#9F1239] transition-colors hidden sm:block">
-            View all →
+          <Link to="/products" className="hidden sm:inline-flex items-center gap-1 text-[#831843] font-semibold text-sm hover:text-[#9F1239] transition-colors">
+            View all <ArrowRight className="w-4 h-4" />
           </Link>
         </motion.div>
 
@@ -277,7 +281,8 @@ export default function HomePage() {
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div {...fadeUp}>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#BE185D]/20 border border-[#BE185D]/30 rounded-full mb-6">
-              <span className="text-[#FAFAF7] text-xs font-semibold tracking-wide uppercase">✨ AI-Powered</span>
+              <Sparkles className="w-3.5 h-3.5 text-[#FAFAF7]" />
+              <span className="text-[#FAFAF7] text-xs font-semibold tracking-wide uppercase">AI-Powered</span>
             </div>
             <h2 className="font-display font-bold text-4xl sm:text-5xl text-white mb-4">
               Not Sure What to Buy?<br />
@@ -289,7 +294,7 @@ export default function HomePage() {
 
             <form onSubmit={handleAiSearch} className="flex gap-3 max-w-xl mx-auto">
               <div className="flex-1 flex items-center gap-3 bg-white rounded-2xl px-5 py-4 shadow-xl">
-                <span className="text-lg">✨</span>
+                <Sparkles className="w-5 h-5 text-[#831843]" />
                 <input
                   type="text"
                   value={aiQuery}
@@ -328,8 +333,8 @@ export default function HomePage() {
             <p className="text-[#9F1239] text-sm font-semibold uppercase tracking-widest mb-2">What's Hot</p>
             <h2 className="font-display font-bold text-4xl text-[#17211D]">Trending Now</h2>
           </div>
-          <Link to="/products" className="text-[#831843] font-semibold text-sm hover:text-[#9F1239] transition-colors hidden sm:block">
-            View all →
+          <Link to="/products" className="hidden sm:inline-flex items-center gap-1 text-[#831843] font-semibold text-sm hover:text-[#9F1239] transition-colors">
+            View all <ArrowRight className="w-4 h-4" />
           </Link>
         </motion.div>
 
@@ -356,10 +361,10 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: '🔒', title: 'Secure Payment', desc: '256-bit SSL encryption on every transaction. Your data is always safe.' },
-              { icon: '⚡', title: 'Fast Delivery', desc: '2-day shipping nationwide. Free delivery on orders over $50.' },
-              { icon: '↩️', title: 'Easy Returns', desc: '30-day hassle-free returns on all products, no questions asked.' },
-              { icon: '✨', title: 'AI-Powered', desc: 'Smart recommendations tailored to your taste and budget.' },
+              { icon: Lock, title: 'Secure Payment', desc: '256-bit SSL encryption on every transaction. Your data is always safe.' },
+              { icon: Zap, title: 'Fast Delivery', desc: '2-day shipping nationwide. Free delivery on orders over $50.' },
+              { icon: RotateCcw, title: 'Easy Returns', desc: '30-day hassle-free returns on all products, no questions asked.' },
+              { icon: Sparkles, title: 'AI-Powered', desc: 'Smart recommendations tailored to your taste and budget.' },
             ].map((feature, i) => (
               <motion.div
                 key={feature.title}
@@ -369,8 +374,8 @@ export default function HomePage() {
                 transition={{ duration: 0.4, delay: i * 0.1 }}
                 className="p-6 rounded-2xl bg-[#FAFAF7] border border-gray-100 hover:border-[#831843]/15 hover:shadow-md transition-all duration-300"
               >
-                <div className="w-12 h-12 bg-[#831843]/8 rounded-2xl flex items-center justify-center text-2xl mb-4">
-                  {feature.icon}
+                <div className="w-12 h-12 bg-[#831843]/8 rounded-2xl flex items-center justify-center mb-4">
+                  <feature.icon className="w-6 h-6 text-[#831843]" />
                 </div>
                 <h3 className="font-display font-bold text-[#17211D] text-lg mb-2">{feature.title}</h3>
                 <p className="text-[#6B756F] text-sm leading-relaxed">{feature.desc}</p>
@@ -449,7 +454,7 @@ export default function HomePage() {
             to="/products"
             className="inline-flex items-center gap-2 px-8 py-4 bg-[#BE185D] text-white rounded-2xl font-bold hover:bg-[#E14E8B] transition-all duration-200 hover:shadow-lg hover:shadow-[#BE185D]/30"
           >
-            Shop the Sale →
+            Shop the Sale <ArrowRight className="w-4 h-4" />
           </Link>
         </motion.div>
       </section>
@@ -480,14 +485,14 @@ function ProductGridSkeleton() {
 function EmptyProducts() {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-      <div className="text-4xl mb-3">🛍️</div>
+      <div className="flex justify-center mb-3"><ShoppingBag className="w-9 h-9 text-[#831843]" /></div>
       <h3 className="font-display font-bold text-xl text-[#17211D] mb-2">Products are coming soon</h3>
       <p className="text-[#6B756F] text-sm mb-6">Our shelves are being stocked. Check back shortly to see what is new.</p>
       <Link
         to="/products"
         className="inline-flex items-center gap-2 px-6 py-3 bg-[#831843] text-white rounded-xl font-semibold text-sm hover:bg-[#9F1239] transition-colors"
       >
-        Browse Products →
+        Browse Products <ArrowRight className="w-4 h-4" />
       </Link>
     </div>
   );
