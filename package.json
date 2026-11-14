@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "engines": {
-    "node": ">=20.19.0"
+    "node": "24.14.1"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^7.0.1",
