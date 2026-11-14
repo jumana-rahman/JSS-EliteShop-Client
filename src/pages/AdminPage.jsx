@@ -22,8 +22,8 @@ import {
   listAdminOrders,
   getAdminOrder,
   updateAdminOrder,
+  downloadAdminInvoice,
 } from '../services/adminOrders';
-import { downloadInvoice } from '../services/orders';
 import { listAdminReviews, deleteAdminReview } from '../services/reviews';
 import {
   listAdminUsers,
@@ -1098,7 +1098,7 @@ function OrdersSection() {
     setInvoiceBusy(true);
 
     try {
-      await downloadInvoice(detail.id || detail.orderNumber);
+      await downloadAdminInvoice(detail.id || detail.orderNumber);
     } catch (error) {
       showToast(error.message || 'Could not download the invoice.', 'error');
     } finally {

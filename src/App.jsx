@@ -47,7 +47,7 @@ function AppShell() {
         <Route path="/login" element={<AuthPage />} />
         <Route path="/register" element={<AuthPage />} />
         <Route path="/dashboard" element={<CustomerRoute><DashboardPage /></CustomerRoute>} />
-        <Route path="/dashboard/orders" element={<CustomerRoute><DashboardPage /></CustomerRoute>} />
+        <Route path="/dashboard/*" element={<CustomerRoute><DashboardPage /></CustomerRoute>} />
         <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/admin/products" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="/admin/categories" element={<AdminRoute><AdminPage /></AdminRoute>} />

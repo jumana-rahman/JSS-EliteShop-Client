@@ -41,7 +41,10 @@ export default function DashboardPage() {
   const { user, isLoggedIn, logout, wishlist, showToast, toggleWishlist, moveToCart, refreshSession } = useApp();
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const routeSection = pathname.split('/')[2] || 'overview';
+  const requestedSection = pathname.split('/')[2] || 'overview';
+  const routeSection = sidebarItems.some(item => item.id === requestedSection)
+    ? requestedSection
+    : 'overview';
 
   const [activeSection, setActiveSection] = useState(routeSection);
   const [orders, setOrders] = useState([]);

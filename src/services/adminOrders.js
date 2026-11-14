@@ -1,4 +1,5 @@
 import { apiFetch } from './api';
+import { downloadInvoiceFile } from './orders';
 
 function toQuery(params = {}) {
   const query = new URLSearchParams();
@@ -25,4 +26,11 @@ export function updateAdminOrder(idOrNumber, data) {
     method: 'PATCH',
     body: data,
   });
+}
+
+export function downloadAdminInvoice(idOrNumber) {
+  return downloadInvoiceFile(
+    `/api/admin/orders/${encodeURIComponent(idOrNumber)}/invoice`,
+    `invoice-${idOrNumber}.pdf`
+  );
 }

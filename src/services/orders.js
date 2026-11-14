@@ -12,14 +12,11 @@ export function getOrder(idOrNumber) {
   return apiFetch(`/api/orders/${encodeURIComponent(idOrNumber)}`);
 }
 
-export async function downloadInvoice(idOrNumber) {
+export async function downloadInvoiceFile(path, filename) {
   let response;
 
   try {
-    response = await fetch(
-      `${API_URL}/api/orders/${encodeURIComponent(idOrNumber)}/invoice`,
-      { credentials: 'include' }
-    );
+    response = await fetch(`${API_URL}${path}`, { credentials: 'include' });
   } catch {
     throw new Error('Could not reach the server. Please try again.');
   }
@@ -37,9 +34,16 @@ export async function downloadInvoice(idOrNumber) {
   const link = document.createElement('a');
 
   link.href = url;
-  link.download = `invoice-${idOrNumber}.pdf`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function downloadInvoice(idOrNumber) {
+  return downloadInvoiceFile(
+    `/api/orders/${encodeURIComponent(idOrNumber)}/invoice`,
+    `invoice-${idOrNumber}.pdf`
+  );
 }
